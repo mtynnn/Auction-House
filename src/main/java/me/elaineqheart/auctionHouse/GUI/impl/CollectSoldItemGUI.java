@@ -1,140 +1,163 @@
 package me.elaineqheart.auctionHouse.GUI.impl;
 
+import me.elaineqheart.auctionHouse.GUI.config.GuiConfigManager;
+
 import me.elaineqheart.auctionHouse.AuctionHouse;
 import me.elaineqheart.auctionHouse.GUI.InventoryButton;
 import me.elaineqheart.auctionHouse.GUI.InventoryGUI;
 import me.elaineqheart.auctionHouse.GUI.other.Sounds;
-import me.elaineqheart.auctionHouse.data.persistentStorage.ItemNoteStorage;
-import me.elaineqheart.auctionHouse.data.persistentStorage.local.SettingManager;
-import me.elaineqheart.auctionHouse.data.persistentStorage.local.configs.M;
-import me.elaineqheart.auctionHouse.data.ram.AhConfiguration;
-import me.elaineqheart.auctionHouse.data.ram.AuctionHouseStorage;
-import me.elaineqheart.auctionHouse.data.ram.ItemManager;
-import me.elaineqheart.auctionHouse.data.ram.ItemNote;
-import me.elaineqheart.auctionHouse.vault.VaultHook;
-import net.milkbowl.vault.economy.Economy;
+import me.elaineqheart.auctionHouse.TaskManager;
+import me.elaineqheart.auctionHouse.manager.AuctionManager;
+import me.elaineqheart.auctionHouse.configuration.M;
+import me.elaineqheart.auctionHouse.configuration.SettingManager;
+import me.elaineqheart.auctionHouse.configuration.SlotConfigManager;
+import me.elaineqheart.auctionHouse.model.*;
+import me.elaineqheart.auctionHouse.manager.ItemManager;
+import me.elaineqheart.auctionHouse.model.AuctionItem;
 import org.bukkit.Bukkit;
 import org.bukkit.OfflinePlayer;
 import org.bukkit.entity.Player;
+import org.bukkit.event.inventory.InventoryCloseEvent;
 import org.bukkit.inventory.Inventory;
 import org.bukkit.inventory.ItemStack;
+import org.bukkit.inventory.meta.ItemMeta;
 
-import java.io.IOException;
 import java.util.UUID;
 
-public class CollectSoldItemGUI extends InventoryGUI {
+public class CollectSoldItemGUI extends InventoryGUI implements Runnable {
 
-    private final ItemNote note;
+    private static final String GUI_NAME = "CollectSoldItemGUI";
+
+    private final AuctionItem note;
+    private final UUID invID = UUID.randomUUID();
+    private final UserSession c;
     private final ItemStack item;
-    private final AhConfiguration c;
-    private final double price;
+    private final boolean goBackToAuctionHouse;
 
-    public CollectSoldItemGUI(ItemNote note, AhConfiguration configuration) {
+    @Override
+    public void run() {
+        this.addButton(SlotConfigManager.getSlot(GUI_NAME, "item-display"), Item());
+        super.decorate(c.getPlayer());
+    }
+
+    public CollectSoldItemGUI(AuctionItem note, UserSession configuration) {
         super();
         this.note = note;
-        price = note.getSoldPrice();
-        item =  ItemManager.createCollectingItemFromNote(note);
         c = configuration;
-        c.setView(AhConfiguration.View.COLLECT_SOLD_ITEM);
+        goBackToAuctionHouse = c.getView() == UserSession.View.AUCTION_HOUSE;
+        c.setView(UserSession.View.COLLECT_SOLD_ITEM);
+        // This is a SOLD item, so we show the collecting item (gold blocks/ingots
+        // usually, representing money)
+        // OR the item itself?
+        // original was ItemManager.createCollectingItemFromNote(note, c.getPlayer())
+        // But wait, in the view file it was `createItemFromNote`?
+        // Let's check the viewed file...
+        // Line 48: this.item = ItemManager.createCollectingItemFromNote(note,
+        // c.getPlayer());
+        this.item = ItemManager.createCollectingItemFromNote(note, c.getPlayer());
+        TaskManager.addTaskID(invID,
+                Bukkit.getScheduler().runTaskTimer(AuctionHouse.getPlugin(), this, 20, 20).getTaskId());
     }
 
     @Override
     protected Inventory createInventory() {
-        return Bukkit.createInventory(null,6*9, M.getFormatted("inventory-titles.collect-sold"));
+        int size = SlotConfigManager.getSize(GUI_NAME);
+        return Bukkit.createInventory(null, size, GuiConfigManager.collectSold().getTitle());
     }
 
     @Override
     public void decorate(Player player) {
-        fillOutPlaces(new String[]{
-                "# # # # # # # # #",
-                "# # # # . # # # #",
-                "# # # # # # # # #",
-                "# # # # . # # # #",
-                "# # # # # # # # #",
-                "# # # # . # # # #"
-        },fillerItem());
-        this.addButton(13, buyingItem());
-        this.addButton(31, collectItem());
-        this.addButton(49, back());
+        fillFiller();
+        this.addButton(SlotConfigManager.getSlot(GUI_NAME, "item-display"), Item());
+        this.addButton(SlotConfigManager.getSlot(GUI_NAME, "confirm"), collectItem());
+        this.addButton(SlotConfigManager.getSlot(GUI_NAME, "return"), back());
         super.decorate(player);
     }
 
-    private void fillOutPlaces(String[] places, InventoryButton fillerItem){
-        for(int i = 0; i < places.length; i++){
-            for(int j = 0; j < places[i].length(); j+=2){
-                if(places[i].charAt(j)=='#') {
-                    this.addButton(i*9+j/2, fillerItem);
-                }
-            }
+    private void fillFiller() {
+        int size = SlotConfigManager.getSize(GUI_NAME);
+        ItemStack filler = SlotConfigManager.createFillerItem(GUI_NAME);
+        ItemMeta meta = filler.getItemMeta();
+        if (meta != null) {
+            meta.setHideTooltip(true);
+            filler.setItemMeta(meta);
+        }
+
+        for (int i = 0; i < size; i++) {
+            int slot = i;
+            this.addButton(slot, new InventoryButton()
+                    .creator(p -> filler)
+                    .consumer(event -> {
+                    }));
         }
     }
 
-    private InventoryButton fillerItem(){
-        return new InventoryButton()
-                .creator(player -> ItemManager.fillerItem)
-                .consumer(event -> {});
-    }
-    private InventoryButton buyingItem() {
+    private InventoryButton Item() {
         return new InventoryButton()
                 .creator(player -> item)
-                .consumer(Sounds::click);
+                .consumer(event -> {
+                    if (ItemManager.isShulkerBox(item) && event.isRightClick()) {
+                        Sounds.openShulker(event);
+                        AuctionHouse.getGuiManager().openGUI(
+                                new ShulkerViewGUI(note, c, UserSession.View.MY_AUCTIONS), c.getPlayer());
+                    }
+                });
     }
+
     private InventoryButton back() {
+        ItemStack backItem = new ItemStack(SlotConfigManager.getMaterial(GUI_NAME, "return"));
+        ItemMeta meta = backItem.getItemMeta();
+        if (meta != null) {
+            meta.setItemName(GuiConfigManager.collectSold().getItemName("return"));
+            meta.setLore(GuiConfigManager.collectSold().getLore("return-lore"));
+            backItem.setItemMeta(meta);
+        }
         return new InventoryButton()
-                .creator(player -> ItemManager.backToMyAuctions)
+                .creator(player -> backItem)
                 .consumer(event -> {
                     Player p = (Player) event.getWhoClicked();
                     Sounds.click(event);
-                    AuctionHouse.getGuiManager().openGUI(new MyAuctionsGUI(c), p);
-                });
-    }
-    private InventoryButton collectItem() {
-        return new InventoryButton()
-                .creator(player -> ItemManager.collectSoldItem(getProfit(price)))
-                .consumer(event -> {
-                    Player p = (Player) event.getWhoClicked();
-                        collect(p, note.getNoteID(), item.getAmount(), price);
-                        Sounds.experience(event);
+                    if (goBackToAuctionHouse)
+                        AuctionHouse.getGuiManager().openGUI(new AuctionHouseGUI(c), p);
+                    else
                         AuctionHouse.getGuiManager().openGUI(new MyAuctionsGUI(c), p);
-                        p.sendMessage(M.getFormatted("chat.collect-sold-auction", getProfit(price),
-                                "%amount%", String.valueOf(item.getAmount()),
-                                "%item%", note.getItemName()));
                 });
     }
 
-    public static boolean collect(OfflinePlayer p, UUID noteID, int itemAmount, double price) {
-        ItemNote note = AuctionHouseStorage.getNote(noteID);
-        if(note == null) return false;
-        if(note.isBIDAuction() && note.isSold()) return false;
-        Economy eco = VaultHook.getEconomy();
-        eco.depositPlayer(p, getProfit(price));
-        if (note.getPartiallySoldAmountLeft() != 0) {
-            ItemNoteStorage.setPrice(note, note.getPrice() - price);
-            ItemStack temp = note.getItem().clone();
-            temp.setAmount(note.getItem().getAmount() - itemAmount);
-            ItemNoteStorage.setItem(note, temp);
-            if (note.getPartiallySoldAmountLeft() == note.getItem().getAmount()) {
-                ItemNoteStorage.setPartiallySoldAmountLeft(note, 0);
-                ItemNoteStorage.setSold(note, false);
-                ItemNoteStorage.setBuyerName(note, null);
-            }
-        } else {
-            if (!note.isBIDAuction()) ItemNoteStorage.deleteNote(note);
-            else {
-                note.setSold(true);
-                AuctionHouseStorage.checkRemove(noteID);
-            }
+    private InventoryButton collectItem() {
+        ItemStack confirmItem = new ItemStack(SlotConfigManager.getMaterial(GUI_NAME, "confirm"));
+        ItemMeta meta = confirmItem.getItemMeta();
+        if (meta != null) {
+            meta.setItemName(GuiConfigManager.collectSold().getItemName("confirm"));
+            meta.setLore(GuiConfigManager.collectSold().getLore("confirm-lore"));
+            confirmItem.setItemMeta(meta);
         }
-        try {
-            ItemNoteStorage.saveNotes();
-        } catch (IOException e) {
-            throw new RuntimeException(e);
-        }
-        return true;
+        return new InventoryButton()
+                .creator(player -> confirmItem)
+                .consumer(event -> {
+                    Player p = (Player) event.getWhoClicked();
+                    // We need to claim the money.
+
+                    if (note.isBIDAuction() && !note.isSold()) {
+                        return; // Sanity check
+                    }
+
+                    boolean success = AuctionManager.getInstance().claimSoldItemMoney(p, note);
+
+                    if (success) {
+                        Sounds.experience(event);
+                        p.sendMessage(M.getFormatted("chat.claimed-money"));
+                        if (goBackToAuctionHouse)
+                            AuctionHouse.getGuiManager().openGUI(new AuctionHouseGUI(c), p);
+                        else
+                            AuctionHouse.getGuiManager().openGUI(new MyAuctionsGUI(c), p);
+                    } else {
+                        Sounds.villagerDeny(event);
+                    }
+                });
     }
 
     private static double getProfit(double price) {
         return Math.floor((price * 100 * (1 - SettingManager.taxRate))) / 100;
     }
-
 }

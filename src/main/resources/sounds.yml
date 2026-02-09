@@ -1,0 +1,64 @@
+# ===========================================
+# SOUNDS CONFIGURATION - AuctionHouse
+# ===========================================
+# Configura los sonidos que reproduce el plugin.
+
+success:
+  enabled: true
+  sound: ENTITY_PLAYER_LEVELUP
+  volume: 1.0
+  pitch: 1.0
+
+error:
+  enabled: true
+  sound: ENTITY_VILLAGER_NO
+  volume: 1.0
+  pitch: 1.0
+
+ui-click:
+  enabled: true
+  sound: UI_STONECUTTER_SELECT_RECIPE
+  volume: 0.5
+  pitch: 1.0
+
+open-gui:
+  enabled: true
+  sound: BLOCK_ENDER_CHEST_OPEN
+  volume: 1.0
+  pitch: 1.0
+
+close-gui:
+  enabled: true
+  sound: BLOCK_ENDER_CHEST_CLOSE
+  volume: 1.0
+  pitch: 1.0
+
+break-wood:
+  enabled: true
+  sound: BLOCK_WOOD_BREAK
+  volume: 1.0
+  pitch: 1.0
+
+experience:
+  enabled: true
+  sound: ENTITY_EXPERIENCE_ORB_PICKUP
+  volume: 1.0
+  pitch: 1.0
+
+open-shulker:
+  enabled: true
+  sound: BLOCK_SHULKER_BOX_OPEN
+  volume: 1.0
+  pitch: 1.0
+
+close-shulker:
+  enabled: true
+  sound: BLOCK_SHULKER_BOX_CLOSE
+  volume: 1.0
+  pitch: 1.0
+
+npc-click:
+  enabled: true
+  sound: UI_STONECUTTER_SELECT_RECIPE
+  volume: 0.5
+  pitch: 1.0

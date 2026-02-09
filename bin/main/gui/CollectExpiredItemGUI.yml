@@ -1,0 +1,22 @@
+# ===========================================
+# COLLECT EXPIRED ITEM GUI - Recoger Ítem Expirado
+# ===========================================
+
+items:
+  confirm: '<red>ʀᴇᴄᴏʟᴇᴄᴛᴀʀ'
+  cancel: '<red>ᴄᴀɴᴄᴇʟᴀʀ'
+  locked-slot: ' '
+
+lore:
+  confirm-lore:
+    - ''
+    - '<gray>Tu subasta ha <red>expirado'
+    - ''
+    - '<red>▶ Clic para recolectar'
+
+  cancel-lore:
+    - ''
+    - '<gray>Clic para <color:#FFD180>volver <gray>atrás'
+
+titles:
+  main: 'ʀᴇᴄᴏʟᴇᴄᴛᴀʀ ᴇxᴘɪʀᴀᴅᴏ'

@@ -1,0 +1,22 @@
+# ===========================================
+# COLLECT SOLD ITEM GUI - Recoger Ítem Vendido
+# ===========================================
+
+items:
+  confirm: '<color:#0DFB00>ʀᴇᴄᴏʟᴇᴄᴛᴀʀ'
+  cancel: '<red>ᴄᴀɴᴄᴇʟᴀʀ'
+  locked-slot: ' '
+
+lore:
+  confirm-lore:
+    - ''
+    - '<color:#FFD180>● <white>Total a recibir: <color:#FFD180>{price}'
+    - ''
+    - '<color:#0DFB00>▶ Clic para recolectar'
+
+  cancel-lore:
+    - ''
+    - '<gray>Clic para <color:#FFD180>volver <gray>atrás'
+
+titles:
+  main: 'ʀᴇᴄᴏʟᴇᴄᴛᴀʀ ᴠᴇɴᴛᴀ'

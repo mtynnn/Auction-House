@@ -10,21 +10,28 @@ public class TaskManager {
     private static final HashMap<String, Integer> taskID = new HashMap<>();
 
     public static void cancelTask(UUID invID) {
-        if(invID == null) return;
+        if (invID == null)
+            return;
         String key = invID.toString();
-        if(taskID.containsKey(key)) {
+        if (taskID.containsKey(key)) {
             Bukkit.getScheduler().cancelTask(taskID.get(key));
             taskID.remove(key);
         }
     }
 
     public static void addTaskID(UUID uniqueId, int taskId) {
-        taskID.put(uniqueId.toString(),taskId);
+        taskID.put(uniqueId.toString(), taskId);
+    }
+
+    public static void cancelAll() {
+        taskID.values().forEach(id -> Bukkit.getScheduler().cancelTask(id));
+        taskID.clear();
     }
 
     // *usage in another class:
 
-    // TaskManager.addTaskID(uuid,Bukkit.getScheduler().runTaskTimer(AuctionHouse.getPlugin(), this, 0, 20).getTaskId());
+    // TaskManager.addTaskID(uuid,Bukkit.getScheduler().runTaskTimer(AuctionHouse.getPlugin(),
+    // this, 0, 20).getTaskId());
     // TaskManager.cancelTask(uuid);
 
 }

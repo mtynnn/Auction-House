@@ -1,6 +1,6 @@
 plugins {
     id 'java'
-    id 'com.github.johnrengelman.shadow' version '8.1.1'
+    id "io.github.goooler.shadow" version "8.1.8"
     id("xyz.jpenilla.run-paper") version "2.3.1"
 }
 
@@ -26,20 +26,28 @@ dependencies {
     compileOnly("org.spigotmc:spigot-api:1.21.4-R0.1-SNAPSHOT")
     compileOnly("com.github.MilkBowl:VaultAPI:1.7")
     compileOnly("com.github.Unp1xelt:Locale-API:1.0")
-    implementation("net.kyori:adventure-text-minimessage:4.25.0")
-    implementation("net.kyori:adventure-text-serializer-legacy:4.25.0")
+    implementation("net.kyori:adventure-text-minimessage:4.26.1")
+    implementation("net.kyori:adventure-text-serializer-legacy:4.26.1")
+    implementation("net.kyori:adventure-platform-bukkit:4.3.4")
+    implementation("de.rapha149.signgui:signgui:2.5.4")
+    implementation("com.zaxxer:HikariCP:5.1.0")
+    implementation("org.xerial:sqlite-jdbc:3.45.1.0")
 }
 
 tasks.named('jar') {
-    enabled = false
+    enabled = true
 }
 
 tasks.named('shadowJar') {
     archiveBaseName.set(rootProject.name ?: 'AuctionHouse')
     archiveClassifier.set('')
     archiveVersion.set(version)
-    destinationDirectory.set(file("/media/elaine/Boot/Elaine/programmieren/java/minecraft/MC_test_servers/1.21.5_paper/plugins"))
     mergeServiceFiles()
+    
+    // Relocate packages to avoid conflicts with other plugins
+    relocate 'net.kyori', 'me.elaineqheart.auctionHouse.libs.kyori'
+    relocate 'com.zaxxer.hikari', 'me.elaineqheart.auctionHouse.libs.hikari'
+    relocate 'de.rapha149.signgui', 'me.elaineqheart.auctionHouse.libs.signgui'
 }
 
 tasks {

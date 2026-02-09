@@ -1,0 +1,23 @@
+# ===========================================
+# CANCEL AUCTION GUI - Cancelar Subasta
+# ===========================================
+
+items:
+  confirm: '<red>ᴄᴀɴᴄᴇʟᴀʀ sᴜʙᴀsᴛᴀ'
+  cancel: '<red>ᴠᴏʟᴠᴇʀ'
+  locked-slot: ' '
+
+lore:
+  confirm-lore:
+    - ''
+    - '<gray>¿Estás seguro de cancelar'
+    - '<gray>esta subasta?'
+    - ''
+    - '<red>▶ Clic para confirmar'
+
+  cancel-lore:
+    - ''
+    - '<gray>Clic para <color:#FFD180>volver <gray>atrás'
+
+titles:
+  main: 'ᴄᴀɴᴄᴇʟᴀʀ sᴜʙᴀsᴛᴀ'

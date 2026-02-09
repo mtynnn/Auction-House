@@ -1,0 +1,98 @@
+# ===========================================
+# AUCTION VIEW GUI - Vista de Subasta
+# ===========================================
+
+items:
+  buy-item: '<color:#FFD180>ᴄᴏᴍᴘʀᴀʀ ᴀʜᴏʀᴀ'
+  choose-amount: '<color:#FFD180>ᴇʟᴇɢɪʀ ᴄᴀɴᴛɪᴅᴀᴅ'
+  confirm: '<color:#0DFB00>ᴄᴏɴғɪʀᴍᴀʀ'
+  cancel: '<red>ᴄᴀɴᴄᴇʟᴀʀ'
+  locked-slot: ' '
+  back: '<color:#FFD180>ᴠᴏʟᴠᴇʀ'
+  cannot-afford: '<red>No puedes pagar'
+  buy: '<color:#FFD180>ᴄᴏᴍᴘʀᴀʀ'
+  set-amount: '<color:#FFD180>ᴄᴀɴᴛɪᴅᴀᴅ'
+  bid-history: '<color:#FFD180>ʜɪsᴛᴏʀɪᴀʟ ᴅᴇ ᴘᴜᴊᴀs'
+  bid-history-entry: '<gray>%player%: <color:#FFD180>%amount%'
+  bid-explanation: '<color:#FFD180>¿ᴄᴏᴍᴏ ᴘᴜᴊᴀʀ?'
+  own-bid: '<red>Tu propia puja'
+  submit-bid: '<color:#FFD180>ᴇɴᴠɪᴀʀ ᴘᴜᴊᴀ'
+  cannot-afford-bid: '<red>No puedes pagar esta puja'
+  top-bid: '<color:#FFD180>ᴘᴜᴊᴀ ᴍᴀs ᴀʟᴛᴀ'
+  cancel-auction: '<red>ᴄᴀɴᴄᴇʟᴀʀ sᴜʙᴀsᴛᴀ'
+
+
+lore:
+  back-lore:
+    - ''
+    - '<gray>Clic para <color:#FFD180>volver <gray>atrás'
+
+  buy-item-lore:
+    - ''
+    - '<color:#FFD180>● <white>Precio: <color:#FFD180>{price}'
+    - ''
+    - '<color:#FFD180>▶ Clic para comprar'
+
+  not-enough-money-lore:
+    - ''
+    - '<gray>Faltan <color:#FFD180>{price}'
+    - '<red><b>¡Dinero insuficiente!'
+
+  choose-amount-lore:
+    - '<gray>Elige la cantidad exacta'
+    - '<gray>que deseas adquirir'
+    - ''
+    - '<gray>Precio proporcional'
+    - ''
+    - '<color:#FFD180>▶ Clic para configurar'
+
+  confirm-lore:
+    - '<gray>Costo total: <color:#FFD180>{price}'
+    - ''
+    - '<color:#0DFB00>▶ Clic para confirmar'
+
+  cancel-lore:
+    - ''
+    - '<gray>Clic para <color:#FFD180>volver <gray>atrás'
+
+  loading-lore:
+    - '<gray>Cargando...'
+
+  bid-history-entry: '<gray>{player}: <color:#FFD180>{amount}'
+  bid-history-empty-lore:
+    - '<gray>Sin pujas todavía'
+
+  bid-explanation-lore:
+    - '<gray>Ingresa tu puja de <color:#FFD180>{bid}'
+    - ''
+    - '<color:#FFD180>▶ Clic para pujar'
+
+  own-bid-lore:
+    - ''
+    - '<gray>Tu puja actual: <color:#FFD180>{bid}'
+    - '<red>¡Ya tienes la puja más alta!'
+
+  submit-bid-lore:
+    - ''
+    - '<gray>Tu puja: <color:#FFD180>{bid}'
+    - '<gray>Incremento mínimo: <color:#FFD180>{current}'
+    - ''
+    - '<color:#FFD180>▶ Clic para pujar'
+
+  cannot-afford-bid-lore:
+    - ''
+    - '<gray>Necesitas <color:#FFD180>{bid}'
+    - '<red><b>¡Dinero insuficiente!'
+
+  top-bid-lore:
+    - ''
+    - '<gray>Puja actual: <color:#FFD180>{bid}'
+    - '<gray>Precio inicial: <color:#FFD180>{price}'
+
+  cancel-auction-lore:
+    - ''
+    - '<gray>Clic para <red>cancelar <gray>tu subasta'
+
+titles:
+  main: 'ᴠɪsᴛᴀ ᴅᴇ sᴜʙᴀsᴛᴀ'
+  auction-view: 'sᴜʙᴀsᴛᴀ'

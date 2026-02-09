@@ -1,0 +1,40 @@
+# ===========================================
+# ENDED AUCTION GUI - Subasta Terminada
+# ===========================================
+
+items:
+  collect-auction: '<color:#0DFB00>ʀᴇᴄᴏʟᴇᴄᴛᴀʀ ɪ́ᴛᴇᴍ'
+  collect-coins: '<color:#FFD180>ʀᴇᴄᴏʟᴇᴄᴛᴀʀ ᴍᴏɴᴇᴅᴀs'
+  back: '<red>ᴠᴏʟᴠᴇʀ'
+  bid-history: '<color:#FFD180>ʜɪsᴛᴏʀɪᴀʟ ᴅᴇ ᴘᴜᴊᴀs'
+  locked-slot: ' '
+
+lore:
+  collect-auction-lore:
+    - ''
+    - '<color:#FFD180>● <white>Precio final: <color:#FFD180>{price}'
+    - '<gray>¡Subasta ganada!'
+    - ''
+    - '<color:#FFD180>▶ Clic para recolectar'
+
+  collect-coins-lore:
+    - ''
+    - '<gray>No ganaste esta subasta'
+    - '<gray>Puedes reclamar tus monedas'
+    - ''
+    - '<gray>Ganador: <white>{winner}'
+    - '<gray>Tu puja: <color:#FFD180>{your_bid}'
+    - ''
+    - '<color:#FFD180>▶ Clic para recolectar'
+
+  back-lore:
+    - '<gray>Clic para <color:#FFD180>volver <gray>atrás'
+
+  bid-history-lore:
+    entry: '<gray>{player}: <color:#FFD180>{amount}'
+    empty:
+      - ''
+      - '<gray>No hay pujas registradas'
+
+titles:
+  main: 'sᴜʙᴀsᴛᴀ ᴛᴇʀᴍɪɴᴀᴅᴀ'

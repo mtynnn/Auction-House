@@ -3,31 +3,31 @@ package me.elaineqheart.auctionHouse.GUI.impl;
 import me.elaineqheart.auctionHouse.AuctionHouse;
 import me.elaineqheart.auctionHouse.GUI.InventoryButton;
 import me.elaineqheart.auctionHouse.GUI.InventoryGUI;
-import me.elaineqheart.auctionHouse.GUI.other.AnvilHandler;
+import me.elaineqheart.auctionHouse.GUI.config.GuiConfigManager;
+
+import me.elaineqheart.auctionHouse.GUI.other.InputManager;
 import me.elaineqheart.auctionHouse.GUI.other.Sounds;
 import me.elaineqheart.auctionHouse.TaskManager;
-import me.elaineqheart.auctionHouse.data.persistentStorage.ItemNoteStorage;
-import me.elaineqheart.auctionHouse.data.persistentStorage.local.SettingManager;
-import me.elaineqheart.auctionHouse.data.persistentStorage.local.configs.M;
-import me.elaineqheart.auctionHouse.data.persistentStorage.local.data.ConfigManager;
-import me.elaineqheart.auctionHouse.data.ram.AhConfiguration;
-import me.elaineqheart.auctionHouse.data.ram.AuctionHouseStorage;
-import me.elaineqheart.auctionHouse.data.ram.ItemManager;
-import me.elaineqheart.auctionHouse.data.ram.ItemNote;
+import me.elaineqheart.auctionHouse.manager.AuctionManager;
+import me.elaineqheart.auctionHouse.configuration.SettingManager;
+import me.elaineqheart.auctionHouse.configuration.SlotConfigManager;
+import me.elaineqheart.auctionHouse.model.UserSession;
+import me.elaineqheart.auctionHouse.manager.ItemManager;
+import me.elaineqheart.auctionHouse.model.AuctionItem;
 import org.bukkit.Bukkit;
 import org.bukkit.entity.Player;
-import org.bukkit.event.inventory.InventoryClickEvent;
 import org.bukkit.event.inventory.InventoryCloseEvent;
 import org.bukkit.inventory.Inventory;
 import org.bukkit.inventory.ItemStack;
 import org.bukkit.inventory.meta.ItemMeta;
 
 import java.util.*;
-import java.util.function.Consumer;
 
 public class AuctionHouseGUI extends InventoryGUI implements Runnable {
 
-    public final AhConfiguration c;
+    private static final String GUI_NAME = "AuctionHouseGUI";
+
+    public final UserSession c;
     private UUID invID = UUID.randomUUID();
     private int noteSize;
     private int screenSize;
@@ -37,7 +37,7 @@ public class AuctionHouseGUI extends InventoryGUI implements Runnable {
         decorate(c.getPlayer());
     }
 
-    public enum Sort{
+    public enum Sort {
         HIGHEST_PRICE,
         LOWEST_PRICE,
         ENDING_SOON,
@@ -46,31 +46,53 @@ public class AuctionHouseGUI extends InventoryGUI implements Runnable {
 
     public AuctionHouseGUI(int page, Sort sort, String search, Player p, boolean isAdmin) {
         super();
-        this.c = new AhConfiguration(page, sort, search, p ,isAdmin);
-        c.setView(AhConfiguration.View.AUCTION_HOUSE);
-        TaskManager.addTaskID(invID,Bukkit.getScheduler().runTaskTimer(AuctionHouse.getPlugin(), this, 20, 20).getTaskId());
+        this.c = new UserSession(page, sort, search, p, isAdmin);
+        c.setView(UserSession.View.AUCTION_HOUSE);
+        TaskManager.addTaskID(invID,
+                Bukkit.getScheduler().runTaskTimer(AuctionHouse.getPlugin(), this, 20, 20).getTaskId());
     }
+
     public AuctionHouseGUI(Player p) {
         super();
-        this.c = AhConfiguration.getInstance(p).setPlayer(p.getUniqueId());
-        c.setView(AhConfiguration.View.AUCTION_HOUSE);
-        TaskManager.addTaskID(invID,Bukkit.getScheduler().runTaskTimer(AuctionHouse.getPlugin(), this, 20, 20).getTaskId());
+        this.c = UserSession.getInstance(p).setPlayer(p.getUniqueId());
+        c.setView(UserSession.View.AUCTION_HOUSE);
+        TaskManager.addTaskID(invID,
+                Bukkit.getScheduler().runTaskTimer(AuctionHouse.getPlugin(), this, 20, 20).getTaskId());
     }
-    public AuctionHouseGUI(AhConfiguration configuration) {
+
+    public AuctionHouseGUI(UserSession configuration) {
         super();
         this.c = configuration;
-        c.setView(AhConfiguration.View.AUCTION_HOUSE);
-        TaskManager.addTaskID(invID,Bukkit.getScheduler().runTaskTimer(AuctionHouse.getPlugin(), this, 20, 20).getTaskId());
+        c.setView(UserSession.View.AUCTION_HOUSE);
+        TaskManager.addTaskID(invID,
+                Bukkit.getScheduler().runTaskTimer(AuctionHouse.getPlugin(), this, 20, 20).getTaskId());
     }
 
     @Override
     protected Inventory createInventory() {
-        return Bukkit.createInventory(null,ConfigManager.layout.ahLayout.size()*9, M.getFormatted("inventory-titles.auction-house"));
+        int size = SlotConfigManager.getSize(GUI_NAME);
+        int pages = 0;
+        if (screenSize > 0) {
+            pages = (noteSize - 1) / screenSize;
+        }
+        if (pages < 0)
+            pages = 0; // handle empty list
+
+        return Bukkit.createInventory(null, size, GuiConfigManager.auctionHouse().getTitle());
     }
 
     @Override
     public void decorate(Player player) {
-        fillOutPlaces(ConfigManager.layout.ahLayout);
+        // Fill with filler items
+        fillFiller();
+
+        // Place auction items
+        List<Integer> itemSlots = SlotConfigManager.getItemSlots(GUI_NAME);
+        fillOutItems(c.getCurrentSort(), itemSlots);
+
+        // Place control buttons
+        placeControlButtons();
+
         super.decorate(player);
     }
 
@@ -83,265 +105,410 @@ public class AuctionHouseGUI extends InventoryGUI implements Runnable {
         TaskManager.cancelTask(invID);
         Bukkit.getScheduler().runTask(AuctionHouse.getPlugin(), () -> decorate(c.getPlayer()));
         invID = UUID.randomUUID();
-        TaskManager.addTaskID(invID,Bukkit.getScheduler().runTaskTimer(AuctionHouse.getPlugin(), this, 20, 20).getTaskId());
+        TaskManager.addTaskID(invID,
+                Bukkit.getScheduler().runTaskTimer(AuctionHouse.getPlugin(), this, 20, 20).getTaskId());
     }
 
-    private void fillOutItems(Sort sort, List<Integer> itemSlots){
-        switch (sort){
-            case HIGHEST_PRICE -> createButtonsForAuctionItems(ItemNoteStorage.SortMode.PRICE_DESC, itemSlots);
-            case LOWEST_PRICE -> createButtonsForAuctionItems(ItemNoteStorage.SortMode.PRICE_ASC, itemSlots);
-            case ENDING_SOON -> createButtonsForAuctionItems(ItemNoteStorage.SortMode.DATE, itemSlots);
-            case ALPHABETICAL -> createButtonsForAuctionItems(ItemNoteStorage.SortMode.NAME, itemSlots);
+    private void fillFiller() {
+        int size = SlotConfigManager.getSize(GUI_NAME);
+        List<Integer> itemSlots = SlotConfigManager.getItemSlots(GUI_NAME);
+        Set<Integer> reservedSlots = new HashSet<>(itemSlots);
+
+        // Add control button slots
+        reservedSlots.add(SlotConfigManager.getSlot(GUI_NAME, "search"));
+        reservedSlots.add(SlotConfigManager.getSlot(GUI_NAME, "sort"));
+        reservedSlots.add(SlotConfigManager.getSlot(GUI_NAME, "previous-page"));
+        reservedSlots.add(SlotConfigManager.getSlot(GUI_NAME, "refresh"));
+        reservedSlots.add(SlotConfigManager.getSlot(GUI_NAME, "next-page"));
+        reservedSlots.add(SlotConfigManager.getSlot(GUI_NAME, "filter"));
+        reservedSlots.add(SlotConfigManager.getSlot(GUI_NAME, "my-auctions"));
+
+        ItemStack filler = SlotConfigManager.createFillerItem(GUI_NAME);
+        ItemMeta meta = filler.getItemMeta();
+        if (meta != null) {
+            meta.setHideTooltip(true);
+            filler.setItemMeta(meta);
+        }
+
+        for (int i = 0; i < size; i++) {
+            if (!reservedSlots.contains(i)) {
+                int slot = i;
+                this.addButton(slot, new InventoryButton()
+                        .creator(player -> filler)
+                        .consumer(event -> {
+                        }));
+            }
         }
     }
 
-    private void createButtonsForAuctionItems(ItemNoteStorage.SortMode mode, List<Integer> itemSlots){
-        List<ItemNote> auctions;
-        auctions = AuctionHouseStorage.getSortedList(mode, c);
-        if(c.getWhitelist() != null) AuctionHouseStorage.applyWhitelist(auctions, c.getWhitelist());
+    private void placeControlButtons() {
+        // Search
+        this.addButton(SlotConfigManager.getSlot(GUI_NAME, "search"), searchOption());
+
+        // Sort
+        this.addButton(SlotConfigManager.getSlot(GUI_NAME, "sort"), sortButton());
+
+        // Pagination
+        this.addButton(SlotConfigManager.getSlot(GUI_NAME, "previous-page"), previousPage());
+        this.addButton(SlotConfigManager.getSlot(GUI_NAME, "refresh"), refresh());
+        this.addButton(SlotConfigManager.getSlot(GUI_NAME, "next-page"), nextPage());
+
+        // Filter (only if both auction types enabled)
+        int filterSlot = SlotConfigManager.getSlot(GUI_NAME, "filter");
+        if (SettingManager.BINAuctions && SettingManager.BIDAuctions) {
+            this.addButton(filterSlot, BINFilter());
+        } else {
+            this.addButton(filterSlot, fillerButton());
+        }
+
+        // My Auctions
+        int myAuctionsSlot = SlotConfigManager.getSlot(GUI_NAME, "my-auctions");
+        this.addButton(myAuctionsSlot, myAuctions());
+    }
+
+    private void fillOutItems(Sort sort, List<Integer> itemSlots) {
+        switch (sort) {
+            case HIGHEST_PRICE -> createButtonsForAuctionItems(AuctionManager.SortMode.PRICE_DESC, itemSlots);
+            case LOWEST_PRICE -> createButtonsForAuctionItems(AuctionManager.SortMode.PRICE_ASC, itemSlots);
+            case ENDING_SOON -> createButtonsForAuctionItems(AuctionManager.SortMode.DATE, itemSlots);
+            case ALPHABETICAL -> createButtonsForAuctionItems(AuctionManager.SortMode.NAME, itemSlots);
+        }
+    }
+
+    private void createButtonsForAuctionItems(AuctionManager.SortMode mode, List<Integer> itemSlots) {
+        List<AuctionItem> auctions = AuctionManager.getInstance().getSortedList(mode, c);
+        if (c.getWhitelist() != null)
+            AuctionManager.getInstance().applyWhitelist(auctions, c.getWhitelist());
+
+        System.out.println("[AuctionHouse-DEBUG] createButtons: Slots=" + itemSlots.size() + ", TotalVisible="
+                + auctions.size() + ", Page=" + c.getCurrentPage());
+
         noteSize = auctions.size();
         screenSize = itemSlots.size();
         int start = c.getCurrentPage() * screenSize;
         int stop = start + screenSize;
         int end = Math.min(noteSize, stop);
+
+        System.out.println("[AuctionHouse-DEBUG] createButtons: noteSize=" + noteSize + ", screenSize=" + screenSize
+                + ", page=" + c.getCurrentPage() + ", start=" + start + ", end=" + end);
+
+        if (start >= noteSize && noteSize > 0) {
+            System.out.println("[AuctionHouse-DEBUG]  - Page out of bounds, resetting to 0");
+            c.setCurrentPage(0);
+            start = 0;
+            stop = screenSize;
+            end = Math.min(noteSize, stop);
+        }
+
         auctions = auctions.subList(start, end);
         int size = auctions.size();
-        for(int i = 0; i < screenSize; ++i){
-            int j = itemSlots.get(i);
-            if(size-1<i) {
-                this.addButton(j, new InventoryButton()
+
+        for (int i = 0; i < screenSize; ++i) {
+            int slot = itemSlots.get(i);
+            if (size - 1 < i) {
+                this.addButton(slot, new InventoryButton()
                         .creator(player -> null)
-                        .consumer(event -> {}));
+                        .consumer(event -> {
+                        }));
                 continue;
             }
-            ItemNote note = auctions.stream().skip(i).findFirst().orElse(null);
-            if(note == null) continue;
-            this.addButton(j,auctionItem(note));
+            AuctionItem note = auctions.stream().skip(i).findFirst().orElse(null);
+            if (note == null)
+                continue;
+            this.addButton(slot, auctionItem(note));
         }
     }
 
-    private InventoryButton auctionItem(ItemNote note){
-        ItemStack item = ItemManager.createItemFromNote(note, c.getPlayer(), false);
+    private InventoryButton auctionItem(AuctionItem note) {
+        boolean isAdmin = c.isAdmin();
+        ItemStack item = ItemManager.createItemFromNote(note, c.getPlayer(), false, isAdmin);
         return new InventoryButton()
                 .creator(player -> item)
                 .consumer(event -> {
+                    // Admin Q key opens admin action menu (expire/delete options)
+                    if (isAdmin && event.getClick() == org.bukkit.event.inventory.ClickType.DROP) {
+                        Sounds.click(event);
+                        AuctionHouse.getGuiManager().openGUI(new AdminActionGUI(note, c), c.getPlayer());
+                        return;
+                    }
                     if (ItemManager.isShulkerBox(item) && event.isRightClick()) {
                         Sounds.openShulker(event);
-                        AuctionHouse.getGuiManager().openGUI(new ShulkerViewGUI(note,c, AhConfiguration.View.AUCTION_HOUSE), c.getPlayer());
+                        AuctionHouse.getGuiManager().openGUI(
+                                new ShulkerViewGUI(note, c, UserSession.View.AUCTION_HOUSE), c.getPlayer());
                         return;
                     }
                     Sounds.click(event);
-                    if (c.isAdmin()) {
-                        AuctionHouse.getGuiManager().openGUI(new AdminManageItemsGUI(note, c), c.getPlayer());
-                        return;
-                    }
-                    if (Objects.equals(Bukkit.getPlayer(note.getPlayerUUID()),c.getPlayer()) && !note.isBIDAuction()) {
+                    // Admin can also buy items (same as regular users)
+                    if (Objects.equals(Bukkit.getPlayer(note.getPlayerUUID()), c.getPlayer()) && !note.isBIDAuction()) {
                         AuctionHouse.getGuiManager().openGUI(new CancelAuctionGUI(note, c), c.getPlayer());
                         return;
                     }
-                    AuctionHouse.getGuiManager().openGUI(new AuctionViewGUI(note, c, 0, AhConfiguration.View.AUCTION_HOUSE), c.getPlayer());
+                    AuctionHouse.getGuiManager()
+                            .openGUI(new AuctionViewGUI(note, c, 0, UserSession.View.AUCTION_HOUSE), c.getPlayer());
                 });
     }
 
-
-    private void fillOutPlaces(List<String> places){
-        List<Integer> itemSlots = new ArrayList<>();
-        for(int i = 0; i < places.size(); i++) {
-            for (int j = 0; j < places.get(i).length(); j += 2) {
-                if (places.get(i).charAt(j) == '.') itemSlots.add(i*9+j/2);
-            }
+    private InventoryButton fillerButton() {
+        ItemStack filler = SlotConfigManager.createFillerItem(GUI_NAME);
+        ItemMeta meta = filler.getItemMeta();
+        if (meta != null) {
+            meta.setHideTooltip(true);
+            filler.setItemMeta(meta);
         }
-        fillOutItems(c.getCurrentSort(), itemSlots);
-        for(int i = 0; i < places.size(); i++){
-            for(int j = 0; j < places.get(i).length(); j+=2){
-                int slot = i*9+j/2;
-                switch (places.get(i).charAt(j)) {
-                    case '#' -> this.addButton(slot, fillerItem());
-                    case 's' -> this.addButton(slot, searchOption());
-                    case 'o' -> this.addButton(slot, sortButton());
-                    case 'p' -> this.addButton(slot, previousPage());
-                    case 'n' -> this.addButton(slot, nextPage());
-                    case 'r' -> this.addButton(slot, refresh());
-                    case 'f' -> {
-                        if (SettingManager.BINAuctions && SettingManager.BIDAuctions) this.addButton(slot, BINFilter());
-                        else this.addButton(slot, fillerItem());
-                    }
-                    case 'm' -> {
-                        if (!c.isAdmin()) this.addButton(slot, myAuctions()); else this.addButton(slot, commandBlockInfo());
-                    }
-                    case '.', ' ' -> {}
-                    default -> {
-                        String symbol = String.valueOf(places.get(i).charAt(j));
-                        this.addButton(slot, customButton(ConfigManager.layout.getItem(symbol),
-                            event -> {
-                            List<Map<?, ?>> whitelist = ConfigManager.categories.getCustomFile().getMapList(symbol);
-                                if (!whitelist.isEmpty()) {
-                                    c.setWhitelist(whitelist, symbol);
-                                    Sounds.click(event);
-                                    update();
-                                }
-                            }
-                        ));
-                    }
-                }
-            }
-        }
-    }
-    private InventoryButton fillerItem(){
         return new InventoryButton()
-                .creator(player -> ItemManager.fillerItem)
-                .consumer(event -> {});
-    }
-    private InventoryButton commandBlockInfo(){
-        return new InventoryButton()
-                .creator(player -> ItemManager.commandBlockInfo)
-                .consumer(event -> {});
+                .creator(player -> filler)
+                .consumer(event -> {
+                });
     }
 
-    private InventoryButton refresh(){
+    private InventoryButton refresh() {
+        ItemStack item = new ItemStack(SlotConfigManager.getMaterial(GUI_NAME, "refresh"));
+        ItemMeta meta = item.getItemMeta();
+        if (meta != null) {
+            meta.setItemName(GuiConfigManager.auctionHouse().getItemName("refresh"));
+            meta.setLore(GuiConfigManager.auctionHouse().getLore("refresh-lore"));
+            item.setItemMeta(meta);
+        }
         return new InventoryButton()
-                .creator(player -> ItemManager.refresh)
+                .creator(player -> item)
                 .consumer(event -> {
                     AuctionHouse.getGuiManager().openGUI(new AuctionHouseGUI(c), c.getPlayer());
                     Sounds.click(event);
                 });
     }
 
-//    private InventoryButton loading(){
-//        return new InventoryButton()
-//                .creator(player -> ItemManager.loading)
-//                .consumer(event -> {});
-//    }
-
-    private InventoryButton nextPage(){
-        int pages = (noteSize-1)/screenSize;
-        ItemStack item = ConfigManager.layout.getItem("n");
+    private InventoryButton nextPage() {
+        int pages = (noteSize - 1) / screenSize;
+        ItemStack item = new ItemStack(SlotConfigManager.getMaterial(GUI_NAME, "next-page"));
         ItemMeta meta = item.getItemMeta();
-        assert meta != null;
-        meta.setItemName(M.getFormatted("items.next-page.name"));
-        meta.setLore(M.getLoreList("items.next-page.lore",
-                "%page%", String.valueOf(c.getCurrentPage()+1),
-                "%pages%", String.valueOf(pages+1)));
-
-        item.setItemMeta(meta);
+        if (meta != null) {
+            meta.setItemName(GuiConfigManager.auctionHouse().getItemName("next-page"));
+            meta.setLore(GuiConfigManager.auctionHouse().getLore("next-page-lore",
+                    "{page}", String.valueOf(c.getCurrentPage() + 1),
+                    "{pages}", String.valueOf(pages + 1))); // GuiConfig uses {page} in example, checking
+            item.setItemMeta(meta);
+        }
         return new InventoryButton()
                 .creator(player -> item)
                 .consumer(event -> {
-                    if(c.getCurrentPage() == pages) return;
-                    if(event.isRightClick()) c.setCurrentPage(pages); else c.setCurrentPage(c.getCurrentPage()+1);
+                    if (c.getCurrentPage() == pages)
+                        return;
+                    if (event.isRightClick())
+                        c.setCurrentPage(pages);
+                    else
+                        c.setCurrentPage(c.getCurrentPage() + 1);
                     Sounds.click(event);
                     update();
                 });
     }
-    private InventoryButton previousPage(){
-        ItemStack item = ConfigManager.layout.getItem("p");
+
+    private InventoryButton previousPage() {
+        ItemStack item = new ItemStack(SlotConfigManager.getMaterial(GUI_NAME, "previous-page"));
         ItemMeta meta = item.getItemMeta();
-        assert meta != null;
-        meta.setItemName(M.getFormatted("items.previous-page.name"));
-        meta.setLore(M.getLoreList("items.previous-page.lore",
-                "%page%", String.valueOf(c.getCurrentPage()+1),
-                "%pages%", String.valueOf((noteSize-1)/screenSize+1)));
-        item.setItemMeta(meta);
+        if (meta != null) {
+            meta.setItemName(GuiConfigManager.auctionHouse().getItemName("prev-page"));
+            meta.setLore(GuiConfigManager.auctionHouse().getLore("prev-page-lore",
+                    "{page}", String.valueOf(c.getCurrentPage() + 1),
+                    "{pages}", String.valueOf((noteSize - 1) / screenSize + 1)));
+            item.setItemMeta(meta);
+        }
         return new InventoryButton()
                 .creator(player -> item)
                 .consumer(event -> {
-                    if(c.getCurrentPage() == 0) return;
-                    if(event.isRightClick()) c.setCurrentPage(0); else c.setCurrentPage(c.getCurrentPage()-1);
+                    if (c.getCurrentPage() == 0)
+                        return;
+                    if (event.isRightClick())
+                        c.setCurrentPage(0);
+                    else
+                        c.setCurrentPage(c.getCurrentPage() - 1);
                     Sounds.click(event);
                     update();
                 });
     }
-    private InventoryButton searchOption(){
-        ItemStack item = c.getCurrentSearch().isEmpty() ? ConfigManager.layout.getItem("s") : ConfigManager.layout.getItem("active-search");
+
+    private InventoryButton searchOption() {
+        boolean hasSearch = !c.getCurrentSearch().isEmpty();
+        ItemStack item = new ItemStack(hasSearch
+                ? SlotConfigManager.getMaterial(GUI_NAME, "search-active")
+                : SlotConfigManager.getMaterial(GUI_NAME, "search"));
         ItemMeta meta = item.getItemMeta();
-        assert meta != null;
-        meta.setItemName(M.getFormatted("items.search.name"));
-        meta.setLore(M.getLoreList("items.search.lore", "%filter%", c.getCurrentSearch()));
-        item.setItemMeta(meta);
+        if (meta != null) {
+            meta.setItemName(GuiConfigManager.auctionHouse().getItemName("search"));
+            meta.setLore(GuiConfigManager.auctionHouse().getLore("search-lore", "{filter}", c.getCurrentSearch()));
+            item.setItemMeta(meta);
+        }
         return new InventoryButton()
                 .creator(player -> item)
                 .consumer(event -> {
-                    if(event.isRightClick()){
-                        //clear filter
+                    if (event.isRightClick()) {
                         Sounds.breakWood(event);
                         c.setCurrentSearch("");
                         c.setCurrentPage(0);
                         update();
-                    }else {
+                    } else {
                         Sounds.click(event);
-                        AnvilHandler handler = new AnvilHandler() {
-                            public void execute(Player p, String typedText) {
-                                c.setCurrentSearch(typedText);
-                                AuctionHouse.getGuiManager().openGUI(new AuctionHouseGUI(c), p);
-                            }
-                            public void onClose(Player p) {
-                                Bukkit.getScheduler().runTaskLater(AuctionHouse.getPlugin(), () ->
-                                        AuctionHouse.getGuiManager().openGUI(new AuctionHouseGUI(c), c.getPlayer()),1);
-                            }
-                        };
-                        if(c.isAdmin()){
-                            AuctionHouse.getAnvilManager().open(c.getPlayer(), "inventory-titles.anvil-admin-search", handler);
-                        }else {
-                            AuctionHouse.getAnvilManager().open(c.getPlayer(), "inventory-titles.anvil-search", handler);
-                        }
+                        InputManager.openSearch(c.getPlayer(), c.isAdmin(), (p, typedText) -> {
+                            c.setCurrentSearch(typedText);
+                            AuctionHouse.getGuiManager().openGUI(new AuctionHouseGUI(c), p);
+                        });
                     }
                 });
     }
-    private InventoryButton sortButton(){
+
+    private InventoryButton sortButton() {
+        ItemStack item = new ItemStack(SlotConfigManager.getMaterial(GUI_NAME, "sort"));
+        ItemMeta meta = item.getItemMeta();
+        if (meta != null) {
+            meta.setItemName(GuiConfigManager.auctionHouse().getItemName("filter"));
+            List<String> lore = new ArrayList<>();
+            lore.add(GuiConfigManager.auctionHouse().getLoreLine("filter-lore", "divider-top"));
+
+            // Highest Price
+            if (c.getCurrentSort() == Sort.HIGHEST_PRICE) {
+                lore.add(GuiConfigManager.auctionHouse().getLoreLine("filter-lore", "highest-price"));
+            } else {
+                lore.add(GuiConfigManager.auctionHouse().getLoreLine("filter-lore", "highest-price-inactive"));
+            }
+
+            // Lowest Price
+            if (c.getCurrentSort() == Sort.LOWEST_PRICE) {
+                lore.add(GuiConfigManager.auctionHouse().getLoreLine("filter-lore", "lowest-price"));
+            } else {
+                lore.add(GuiConfigManager.auctionHouse().getLoreLine("filter-lore", "lowest-price-inactive"));
+            }
+
+            // Ending Soon
+            if (c.getCurrentSort() == Sort.ENDING_SOON) {
+                lore.add(GuiConfigManager.auctionHouse().getLoreLine("filter-lore", "ending-soon"));
+            } else {
+                lore.add(GuiConfigManager.auctionHouse().getLoreLine("filter-lore", "ending-soon-inactive"));
+            }
+
+            // Alphabetical
+            if (c.getCurrentSort() == Sort.ALPHABETICAL) {
+                lore.add(GuiConfigManager.auctionHouse().getLoreLine("filter-lore", "alphabetical"));
+            } else {
+                lore.add(GuiConfigManager.auctionHouse().getLoreLine("filter-lore", "alphabetical-inactive"));
+            }
+
+            lore.add(GuiConfigManager.auctionHouse().getLoreLine("filter-lore", "divider-bottom"));
+            lore.add(GuiConfigManager.auctionHouse().getLoreLine("filter-lore", "click-to-switch"));
+            lore.add(GuiConfigManager.auctionHouse().getLoreLine("filter-lore", "right-click"));
+
+            meta.setLore(lore);
+            item.setItemMeta(meta);
+        }
         return new InventoryButton()
-                .creator(player -> ItemManager.getSort(c.getCurrentSort()))
+                .creator(player -> item)
                 .consumer(event -> {
                     Sounds.click(event);
-                    if(event.isRightClick()) c.setCurrentSort(previousSort(c.getCurrentSort()));
-                    else c.setCurrentSort(nextSort(c.getCurrentSort()));;
+                    if (event.isRightClick())
+                        c.setCurrentSort(previousSort(c.getCurrentSort()));
+                    else
+                        c.setCurrentSort(nextSort(c.getCurrentSort()));
                     c.setCurrentPage(0);
                     update();
                 });
     }
-    private InventoryButton myAuctions(){
+
+    private InventoryButton myAuctions() {
+        ItemStack item = new ItemStack(SlotConfigManager.getMaterial(GUI_NAME, "my-auctions"));
+        ItemMeta meta = item.getItemMeta();
+        if (meta != null) {
+            meta.setItemName(GuiConfigManager.auctionHouse().getItemName("my-auctions"));
+            meta.setLore(GuiConfigManager.auctionHouse().getLore("my-auctions-lore",
+                    "{listings_count}",
+                    String.valueOf(AuctionManager.getInstance().getNumberOfAuctions(c.getPlayer().getUniqueId()))));
+            item.setItemMeta(meta);
+        }
         return new InventoryButton()
-                .creator(player -> ItemManager.myAuction)
+                .creator(player -> item)
                 .consumer(event -> {
                     Sounds.openEnderChest(event);
                     AuctionHouse.getGuiManager().openGUI(new MyAuctionsGUI(c), (Player) event.getWhoClicked());
                 });
     }
-    private InventoryButton BINFilter(){
+
+    private InventoryButton BINFilter() {
+        ItemStack item = new ItemStack(SlotConfigManager.getMaterial(GUI_NAME, "bin-filter-all"));
+        ItemMeta meta = item.getItemMeta();
+        if (meta != null) {
+            meta.setItemName(GuiConfigManager.auctionHouse().getItemName("bin-filter-all"));
+
+            List<String> lore = new ArrayList<>();
+            lore.add(GuiConfigManager.auctionHouse().getLoreLine("bin-filter-lore", "divider-top"));
+
+            // All
+            if (c.getBinFilter() == UserSession.BINFilter.ALL) {
+                lore.add(GuiConfigManager.auctionHouse().getLoreLine("bin-filter-lore", "all"));
+            } else {
+                lore.add(GuiConfigManager.auctionHouse().getLoreLine("bin-filter-lore", "all-inactive"));
+            }
+
+            // BIN Only
+            if (c.getBinFilter() == UserSession.BINFilter.BIN_ONLY) {
+                lore.add(GuiConfigManager.auctionHouse().getLoreLine("bin-filter-lore", "bin"));
+            } else {
+                lore.add(GuiConfigManager.auctionHouse().getLoreLine("bin-filter-lore", "bin-inactive"));
+            }
+
+            // Auctions Only
+            if (c.getBinFilter() == UserSession.BINFilter.AUCTIONS_ONLY) {
+                lore.add(GuiConfigManager.auctionHouse().getLoreLine("bin-filter-lore", "auctions"));
+            } else {
+                lore.add(GuiConfigManager.auctionHouse().getLoreLine("bin-filter-lore", "auctions-inactive"));
+            }
+
+            lore.add(GuiConfigManager.auctionHouse().getLoreLine("bin-filter-lore", "divider-bottom"));
+            lore.add(GuiConfigManager.auctionHouse().getLoreLine("bin-filter-lore", "click-to-switch"));
+            lore.add(GuiConfigManager.auctionHouse().getLoreLine("bin-filter-lore", "right-click"));
+
+            meta.setLore(lore);
+            item.setItemMeta(meta);
+        }
         return new InventoryButton()
-                .creator(player -> ItemManager.createBINFilter(c.getBinFilter()))
+                .creator(player -> item)
                 .consumer(event -> {
-                    if(event.isRightClick()) c.setBinFilter(previousBINFilter(c.getBinFilter())); else c.setBinFilter(nextBINFilter(c.getBinFilter()));
+                    if (event.isRightClick())
+                        c.setBinFilter(previousBINFilter(c.getBinFilter()));
+                    else
+                        c.setBinFilter(nextBINFilter(c.getBinFilter()));
                     Sounds.click(event);
                     update();
                 });
     }
-    private InventoryButton customButton(ItemStack item, Consumer<InventoryClickEvent> execute) {
-        return new InventoryButton()
-                .creator(player -> item)
-                .consumer(execute);
+
+    private Sort nextSort(Sort input) {
+        return switch (input) {
+            case HIGHEST_PRICE -> Sort.LOWEST_PRICE;
+            case LOWEST_PRICE -> Sort.ENDING_SOON;
+            case ENDING_SOON -> Sort.ALPHABETICAL;
+            case ALPHABETICAL -> Sort.HIGHEST_PRICE;
+        };
     }
 
-    private Sort nextSort(Sort input){
-        if(input.equals(Sort.HIGHEST_PRICE)) return Sort.LOWEST_PRICE;
-        if(input.equals(Sort.LOWEST_PRICE)) return Sort.ENDING_SOON;
-        if(input.equals(Sort.ENDING_SOON)) return Sort.ALPHABETICAL;
-        return Sort.HIGHEST_PRICE;
-    }
-    private Sort previousSort(Sort input){
-        if(input.equals(Sort.ALPHABETICAL)) return Sort.ENDING_SOON;
-        if(input.equals(Sort.ENDING_SOON)) return Sort.LOWEST_PRICE;
-        if(input.equals(Sort.LOWEST_PRICE)) return Sort.HIGHEST_PRICE;
-        return Sort.ALPHABETICAL;
-    }
-    private AhConfiguration.BINFilter nextBINFilter(AhConfiguration.BINFilter input) {
-        if(input.equals(AhConfiguration.BINFilter.ALL)) return AhConfiguration.BINFilter.BIN_ONLY;
-        if(input.equals(AhConfiguration.BINFilter.BIN_ONLY)) return AhConfiguration.BINFilter.AUCTIONS_ONLY;
-        return AhConfiguration.BINFilter.ALL;
-    }
-    private AhConfiguration.BINFilter previousBINFilter(AhConfiguration.BINFilter input) {
-        if(input.equals(AhConfiguration.BINFilter.ALL)) return AhConfiguration.BINFilter.AUCTIONS_ONLY;
-        if(input.equals(AhConfiguration.BINFilter.AUCTIONS_ONLY)) return AhConfiguration.BINFilter.BIN_ONLY;
-        return AhConfiguration.BINFilter.ALL;
+    private Sort previousSort(Sort input) {
+        return switch (input) {
+            case ALPHABETICAL -> Sort.ENDING_SOON;
+            case ENDING_SOON -> Sort.LOWEST_PRICE;
+            case LOWEST_PRICE -> Sort.HIGHEST_PRICE;
+            case HIGHEST_PRICE -> Sort.ALPHABETICAL;
+        };
     }
 
+    private UserSession.BINFilter nextBINFilter(UserSession.BINFilter input) {
+        return switch (input) {
+            case ALL -> UserSession.BINFilter.BIN_ONLY;
+            case BIN_ONLY -> UserSession.BINFilter.AUCTIONS_ONLY;
+            case AUCTIONS_ONLY -> UserSession.BINFilter.ALL;
+        };
+    }
+
+    private UserSession.BINFilter previousBINFilter(UserSession.BINFilter input) {
+        return switch (input) {
+            case ALL -> UserSession.BINFilter.AUCTIONS_ONLY;
+            case AUCTIONS_ONLY -> UserSession.BINFilter.BIN_ONLY;
+            case BIN_ONLY -> UserSession.BINFilter.ALL;
+        };
+    }
 }

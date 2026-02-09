@@ -1,116 +1,151 @@
 package me.elaineqheart.auctionHouse.GUI.impl;
 
+import me.elaineqheart.auctionHouse.GUI.config.GuiConfigManager;
+
 import me.elaineqheart.auctionHouse.AuctionHouse;
 import me.elaineqheart.auctionHouse.GUI.InventoryButton;
 import me.elaineqheart.auctionHouse.GUI.InventoryGUI;
 import me.elaineqheart.auctionHouse.GUI.other.Sounds;
-import me.elaineqheart.auctionHouse.data.persistentStorage.ItemNoteStorage;
-import me.elaineqheart.auctionHouse.data.persistentStorage.local.configs.M;
-import me.elaineqheart.auctionHouse.data.ram.AhConfiguration;
-import me.elaineqheart.auctionHouse.data.ram.ItemManager;
-import me.elaineqheart.auctionHouse.data.ram.ItemNote;
+import me.elaineqheart.auctionHouse.TaskManager;
+import me.elaineqheart.auctionHouse.manager.AuctionManager;
+import me.elaineqheart.auctionHouse.configuration.M;
+import me.elaineqheart.auctionHouse.configuration.SlotConfigManager;
+import me.elaineqheart.auctionHouse.model.*;
+import me.elaineqheart.auctionHouse.manager.ItemManager;
+import me.elaineqheart.auctionHouse.model.AuctionItem;
 import org.bukkit.Bukkit;
 import org.bukkit.entity.Player;
+import org.bukkit.event.inventory.InventoryCloseEvent;
 import org.bukkit.inventory.Inventory;
+import org.bukkit.inventory.ItemStack;
+import org.bukkit.inventory.meta.ItemMeta;
 
-import java.io.IOException;
+import java.util.UUID;
 
-public class CollectExpiredItemGUI extends InventoryGUI {
+public class CollectExpiredItemGUI extends InventoryGUI implements Runnable {
 
-    private final ItemNote note;
-    private final AhConfiguration c;
-    public CollectExpiredItemGUI(ItemNote note, AhConfiguration configuration) {
+    private static final String GUI_NAME = "CollectExpiredItemGUI";
+
+    private final AuctionItem note;
+    private final UUID invID = UUID.randomUUID();
+    private final UserSession c;
+    private final ItemStack item;
+    private final boolean goBackToAuctionHouse; // Should always be false for MyAuctions/Expired?
+    // Actually, Expired items are listed in MyAuctionsGUI (Expired filter).
+    // The previous code checked: goBackToAuctionHouse = c.getView() ==
+    // View.AUCTION_HOUSE
+    // But you can only access expired items from MyAuctions usually?
+    // Let's keep the logic.
+
+    @Override
+    public void run() {
+        this.addButton(SlotConfigManager.getSlot(GUI_NAME, "item-display"), Item());
+        super.decorate(c.getPlayer());
+    }
+
+    public CollectExpiredItemGUI(AuctionItem note, UserSession configuration) {
         super();
         this.note = note;
         c = configuration;
-        c.setView(AhConfiguration.View.COLLECT_EXPIRED_ITEM);
+        goBackToAuctionHouse = c.getView() == UserSession.View.AUCTION_HOUSE;
+        c.setView(UserSession.View.COLLECT_EXPIRED_ITEM);
+        this.item = ItemManager.createItemFromNote(note, c.getPlayer(), true, false);
+        TaskManager.addTaskID(invID,
+                Bukkit.getScheduler().runTaskTimer(AuctionHouse.getPlugin(), this, 20, 20).getTaskId());
     }
 
     @Override
     protected Inventory createInventory() {
-        return Bukkit.createInventory(null,6*9, M.getFormatted("inventory-titles.collect-expired"));
+        int size = SlotConfigManager.getSize(GUI_NAME);
+        return Bukkit.createInventory(null, size, GuiConfigManager.collectExpired().getTitle());
     }
 
     @Override
     public void decorate(Player player) {
-        fillOutPlaces(new String[]{
-                "# # # # # # # # #",
-                "# # # # . # # # #",
-                "# # # # # # # # #",
-                "# # # # . # # # #",
-                "# # # # # # # # #",
-                "# # # # . # # # #"
-        },fillerItem());
-        this.addButton(13, Item());
-        this.addButton(31, collectItem());
-        this.addButton(49, back());
+        fillFiller();
+        this.addButton(SlotConfigManager.getSlot(GUI_NAME, "item-display"), Item());
+        this.addButton(SlotConfigManager.getSlot(GUI_NAME, "confirm"), collectItem());
+        this.addButton(SlotConfigManager.getSlot(GUI_NAME, "return"), back());
         super.decorate(player);
     }
 
-    private void fillOutPlaces(String[] places, InventoryButton fillerItem){
-        for(int i = 0; i < places.length; i++){
-            for(int j = 0; j < places[i].length(); j+=2){
-                if(places[i].charAt(j)=='#') {
-                    this.addButton(i*9+j/2, fillerItem);
-                }
-            }
+    private void fillFiller() {
+        int size = SlotConfigManager.getSize(GUI_NAME);
+        ItemStack filler = SlotConfigManager.createFillerItem(GUI_NAME);
+        ItemMeta meta = filler.getItemMeta();
+        if (meta != null) {
+            meta.setHideTooltip(true);
+            filler.setItemMeta(meta);
+        }
+
+        for (int i = 0; i < size; i++) {
+            int slot = i;
+            this.addButton(slot, new InventoryButton()
+                    .creator(p -> filler)
+                    .consumer(event -> {
+                    }));
         }
     }
 
-    private InventoryButton fillerItem(){
-        return new InventoryButton()
-                .creator(player -> ItemManager.fillerItem)
-                .consumer(event -> {});
-    }
     private InventoryButton Item() {
         return new InventoryButton()
-                .creator(player -> ItemManager.createItemFromNote(note, player, true))
-                .consumer(Sounds::click);
+                .creator(player -> item)
+                .consumer(event -> {
+                    if (ItemManager.isShulkerBox(item) && event.isRightClick()) {
+                        Sounds.openShulker(event);
+                        AuctionHouse.getGuiManager().openGUI(
+                                new ShulkerViewGUI(note, c, UserSession.View.MY_AUCTIONS), c.getPlayer());
+                    }
+                });
     }
+
     private InventoryButton back() {
+        ItemStack backItem = new ItemStack(SlotConfigManager.getMaterial(GUI_NAME, "return"));
+        ItemMeta meta = backItem.getItemMeta();
+        if (meta != null) {
+            meta.setItemName(GuiConfigManager.collectExpired().getItemName("return"));
+            meta.setLore(GuiConfigManager.collectExpired().getLore("return-lore"));
+            backItem.setItemMeta(meta);
+        }
         return new InventoryButton()
-                .creator(player -> ItemManager.backToMyAuctions)
+                .creator(player -> backItem)
                 .consumer(event -> {
                     Player p = (Player) event.getWhoClicked();
                     Sounds.click(event);
-                    AuctionHouse.getGuiManager().openGUI(new MyAuctionsGUI(c), p);
+                    if (goBackToAuctionHouse)
+                        AuctionHouse.getGuiManager().openGUI(new AuctionHouseGUI(c), p);
+                    else
+                        AuctionHouse.getGuiManager().openGUI(new MyAuctionsGUI(c), p);
                 });
     }
+
     private InventoryButton collectItem() {
+        ItemStack confirmItem = new ItemStack(SlotConfigManager.getMaterial(GUI_NAME, "confirm"));
+        ItemMeta meta = confirmItem.getItemMeta();
+        if (meta != null) {
+            meta.setItemName(GuiConfigManager.collectExpired().getItemName("confirm"));
+            meta.setLore(GuiConfigManager.collectExpired().getLore("confirm-lore"));
+            confirmItem.setItemMeta(meta);
+        }
         return new InventoryButton()
-                .creator(player -> ItemManager.collectExpiredItem)
+                .creator(player -> confirmItem)
                 .consumer(event -> {
                     Player p = (Player) event.getWhoClicked();
-                    //check if inventory is full
-                    if(p.getInventory().firstEmpty() == -1){
+                    // check if inventory is full
+                    if (p.getInventory().firstEmpty() == -1) {
                         p.sendMessage(M.getFormatted("chat.inventory-full"));
                         Sounds.villagerDeny(event);
                         return;
                     }
                     Sounds.experience(event);
-                    //expired by a moderator:
-                    if(note.getAdminMessage() != null && !note.getAdminMessage().isEmpty()) {
-                        if(note.getItem().equals(ItemManager.createDirt())) {
-                            p.sendMessage(M.getFormatted("chat.deleted-auction-by-admin", "%reason%", note.getAdminMessage()));
-                        }else {
-                            p.sendMessage(M.getFormatted("chat.expired-auction-by-admin", "%reason%", note.getAdminMessage()));
-                            p.getInventory().addItem(note.getItem());
-                        }
-                        ItemNoteStorage.deleteNote(note);
-                        p.closeInventory();
-                    } else {
-                        p.getInventory().addItem(note.getItem());
-                        ItemNoteStorage.deleteNote(note); //delete it first, before opening the new GUI!!
-                        AuctionHouse.getGuiManager().openGUI(new MyAuctionsGUI(c), p);
-                    }
-
-                    try {
-                        ItemNoteStorage.saveNotes();
-                    } catch (IOException e) {
-                        throw new RuntimeException(e);
-                    }
+                    p.getInventory().addItem(note.getItem());
+                    AuctionManager.getInstance().deleteAuction(note);
+                    AuctionHouse.getGuiManager().openGUI(new MyAuctionsGUI(c), p);
                 });
     }
 
+    @Override
+    public void onClose(InventoryCloseEvent event) {
+        TaskManager.cancelTask(invID);
+    }
 }
-

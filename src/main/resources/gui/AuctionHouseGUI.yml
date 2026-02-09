@@ -1,0 +1,83 @@
+# ===========================================
+# AUCTION HOUSE GUI - Interfaz Principal
+# ===========================================
+
+items:
+  search: '<color:#FFD180>ʙᴜsᴄᴀʀ'
+  filter: '<color:#FFD180>ᴏʀᴅᴇɴᴀʀ'
+  prev-page: '<red>ᴀɴᴛᴇʀɪᴏʀ'
+  prev-page-disabled: '<gray>ᴀɴᴛᴇʀɪᴏʀ'
+  next-page: '<color:#FFD180>sɪɢᴜɪᴇɴᴛᴇ'
+  next-page-disabled: '<gray>sɪɢᴜɪᴇɴᴛᴇ'
+  refresh: '<color:#FFD180>ʀᴇᴄᴀʀɢᴀʀ'
+  my-auctions: '<color:#FFD180>ᴍɪs sᴜʙᴀsᴛᴀs'
+  my-bids: '<color:#FFD180>ᴍɪs ᴘᴜᴊᴀs'
+  transaction-history: '<color:#FFD180>ʜɪsᴛᴏʀɪᴀʟ'
+  my-listings: '<color:#FFD180>ᴍɪs ᴠᴇɴᴛᴀs'
+  locked-slot: ' '
+
+lore:
+  search-lore:
+    - ''
+    - '<gray>Clic para buscar'
+    - '<gray>ítems específicos.'
+    - ''
+    - '<color:#FFD180>▶ Clic para buscar'
+
+  filter-lore:
+    divider-top: ' '
+    highest-price: '<color:#FFD180>● Más caros'
+    highest-price-inactive: '<white>● Más caros'
+    lowest-price: '<color:#FFD180>● Más baratos'
+    lowest-price-inactive: '<white>● Más baratos'
+    ending-soon: '<color:#FFD180>● Por terminar'
+    ending-soon-inactive: '<white>● Por terminar'
+    alphabetical: '<color:#FFD180>● Alfabético'
+    alphabetical-inactive: '<white>● Alfabético'
+    divider-bottom: ' '
+    click-to-switch: '<white>Clic para cambiar'
+    right-click: '<gray>Clic derecho: anterior'
+
+  next-page-lore:
+    - '<gray>Clic para ir a la siguiente página'
+
+  prev-page-lore:
+    - '<gray>Clic para ir a la página anterior'
+
+  refresh-lore:
+    - ''
+    - '<gray>Vender ítems: <white>/ah sell (precio)'
+    - ''
+    - '<color:#FFD180>▶ Clic para recargar'
+
+  my-auctions-lore:
+    - '<gray>Clic para ver tus ventas <color:#FFD180>({listings_count})'
+
+  my-bids-lore:
+    - ''
+    - '<gray>Clic para ver tus'
+    - '<gray>subastas <color:#FFD180>activas'
+    - ''
+    - '<color:#FFD180>▶ Clic para ver'
+
+  transaction-history-lore:
+    - ''
+    - '<gray>Clic para ver tu'
+    - '<gray>historial de <color:#FFD180>transacciones'
+    - ''
+    - '<color:#FFD180>▶ Clic para ver'
+
+  auction-item-lore:
+    - ''
+    - '<color:#FFD180>● <white>Precio: <color:#FFD180>{price}'
+    - '<color:#FFD180>● <white>Vendedor: <color:#FFD180>{seller}'
+    - '<color:#FFD180>● <white>Expira en: <color:#FFD180>{remaining_time}'
+    - ''
+    - '{if_shulker}<white>Clic para previsualizar'
+    - '{if_not_seller}<white>Clic para comprar'
+    - '{if_seller}<gray>Clic para retirar este ítem'
+    - ''
+    - '{if_admin}<red><bold>Admin: Q para gestionar'
+
+titles:
+  main: 'sᴜʙᴀsᴛᴀs'

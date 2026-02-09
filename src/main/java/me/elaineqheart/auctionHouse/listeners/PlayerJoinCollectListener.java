@@ -1,12 +1,13 @@
 package me.elaineqheart.auctionHouse.listeners;
 
 import me.elaineqheart.auctionHouse.AuctionHouse;
-import me.elaineqheart.auctionHouse.GUI.impl.CollectSoldItemGUI;
-import me.elaineqheart.auctionHouse.data.persistentStorage.local.SettingManager;
-import me.elaineqheart.auctionHouse.data.persistentStorage.local.configs.M;
-import me.elaineqheart.auctionHouse.data.ram.AuctionHouseStorage;
-import me.elaineqheart.auctionHouse.data.ram.ItemNote;
+
+import me.elaineqheart.auctionHouse.configuration.SettingManager;
+import me.elaineqheart.auctionHouse.configuration.M;
+import me.elaineqheart.auctionHouse.manager.AuctionManager;
+import me.elaineqheart.auctionHouse.model.AuctionItem;
 import org.bukkit.Bukkit;
+import org.bukkit.OfflinePlayer;
 import org.bukkit.entity.Player;
 import org.bukkit.event.EventHandler;
 import org.bukkit.event.Listener;
@@ -16,19 +17,23 @@ public class PlayerJoinCollectListener implements Listener {
 
     @EventHandler
     public void onPlayerJoin(PlayerJoinEvent event) {
-        if(!SettingManager.autoCollect) return;
+        if (!SettingManager.autoCollect)
+            return;
         Bukkit.getScheduler().runTaskLater(AuctionHouse.getPlugin(), () -> {
             Player p = event.getPlayer();
-            for(ItemNote note : AuctionHouseStorage.getMySortedDateCreated(p.getUniqueId())) sell(note, p);
+            for (AuctionItem note : AuctionManager.getInstance().getMySortedDateCreated(p.getUniqueId()))
+                sell(note, p);
         }, 1);
 
     }
 
-    public static void sell(ItemNote note, Player p) {
-        if (!note.isSold() && !(note.isBIDAuction() && note.hasBidHistory() && note.isExpired())) return;
+    public static void sell(AuctionItem note, Player p) {
+        if (!note.isSold() && !(note.isBIDAuction() && note.hasBidHistory() && note.isExpired()))
+            return;
         int amount = note.getItem().getAmount() - note.getPartiallySoldAmountLeft();
-        if(CollectSoldItemGUI.collect(p, note.getNoteID(), amount, note.getSoldPrice())
-            && SettingManager.soldMessageEnabled) p.sendMessage(M.getFormatted("chat.sold-message.auto-collect", note.getSoldPrice(),
+        if (AuctionManager.getInstance().claimSoldItemMoney(p, note)
+                && SettingManager.soldMessageEnabled)
+            p.sendMessage(M.getFormatted("chat.sold-message.auto-collect", note.getSoldPrice(),
                     "%player%", note.getBuyerName(),
                     "%item%", note.getItemName(),
                     "%amount%", String.valueOf(amount)));

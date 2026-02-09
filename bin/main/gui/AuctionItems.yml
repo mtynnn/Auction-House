@@ -1,0 +1,74 @@
+# ===========================================
+# AUCTION ITEMS CONFIGURATION
+# ===========================================
+
+items:
+  deleted:
+    name: '<red>Ítem Eliminado'
+
+  auction:
+    lore:
+      shulker-preview:
+        - '<white>Clic derecho para previsualizar'
+      
+      default:
+        - '<color:#FFD180>● <white>Precio: <color:#FFD180>{price}'
+        - '<color:#FFD180>● <white>Vendedor: <color:#FFD180>{player}'
+
+      default-starting-bid:
+        - '<color:#FFD180>● <white>Puja inicial: <color:#FFD180>{price}'
+        - '<color:#FFD180>● <white>Vendedor: <color:#FFD180>{player}'
+
+      default-bid:
+        - '<color:#FFD180>● <white>Precio actual: <color:#FFD180>{price}'
+        - '<color:#FFD180>● <white>Vendedor: <color:#FFD180>{player}'
+        - '<color:#FFD180>● <white>Pujas: <white>{amountOfBids}'
+        - '<color:#FFD180>● <white>Último pujador: <white>{bidder}'
+
+      own-auction:
+        - ''
+        - '<white>Clic para retirar tu subasta'
+
+      admin-deleted:
+        - '<red><b>ELIMINADO POR ADMIN'
+      
+      admin-expired:
+        - '<red><b>EXPIRADO POR ADMIN'
+
+      admin-message:
+        - '<gray>Razón: <white>{reason}'
+
+      expired:
+        - '<red><b>¡Expirado!'
+
+      partially-sold:
+        - '<gray>Vendidos: <white>{sold}/{total}'
+        - '<gray>Comprador: <white>{buyer}'
+
+      active:
+        - '<color:#FFD180>● <white>Expira en: <color:#FFD180>{time}'
+
+      ended:
+        - '<gray>Subasta finalizada'
+
+      sold:
+        - '<gold>¡Vendido a {buyer}!'
+
+      waiting-list:
+        - '<color:#FFD180>● <white>En lista de espera: <color:#FFD180>{time}'
+
+  admin-expire-item:
+    lore:
+      - '<gray>Precio: <color:#FFD180>{price}'
+      - '<gray>Vendedor: <white>{player}'
+      - '<gray>Razón: <white>{reason}'
+      - ''
+      - '<green>Clic para confirmar expiración'
+
+  admin-delete-item:
+    lore:
+      - '<gray>Precio: <color:#FFD180>{price}'
+      - '<gray>Vendedor: <white>{player}'
+      - '<gray>Razón: <white>{reason}'
+      - ''
+      - '<red>Clic para confirmar eliminación'

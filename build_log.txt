@@ -1,0 +1,329 @@
+
+> Task :compileJava FAILED
+C:\Users\marti\Documents\GitHub\Auction-House\src\main\java\me\elaineqheart\auctionHouse\data\persistentStorage\ItemNoteStorage.java:5: error: cannot find symbol
+import me.elaineqheart.auctionHouse.data.ram.ItemNote;
+                                            ^
+  symbol:   class ItemNote
+  location: package me.elaineqheart.auctionHouse.data.ram
+C:\Users\marti\Documents\GitHub\Auction-House\src\main\java\me\elaineqheart\auctionHouse\data\persistentStorage\ItemNoteStorage.java:37: error: cannot find symbol
+    public static void deleteNote(ItemNote note) {
+                                  ^
+  symbol:   class ItemNote
+  location: class ItemNoteStorage
+C:\Users\marti\Documents\GitHub\Auction-House\src\main\java\me\elaineqheart\auctionHouse\data\persistentStorage\ItemNoteStorage.java:42: error: cannot find symbol
+    public static void setBuyerName(ItemNote note, String buyerName) {
+                                    ^
+  symbol:   class ItemNote
+  location: class ItemNoteStorage
+C:\Users\marti\Documents\GitHub\Auction-House\src\main\java\me\elaineqheart\auctionHouse\data\persistentStorage\ItemNoteStorage.java:47: error: cannot find symbol
+    public static void setSold(ItemNote note, boolean isSold) {
+                               ^
+  symbol:   class ItemNote
+  location: class ItemNoteStorage
+C:\Users\marti\Documents\GitHub\Auction-House\src\main\java\me\elaineqheart\auctionHouse\data\persistentStorage\ItemNoteStorage.java:52: error: cannot find symbol
+    public static void setAdminMessage(ItemNote note, String adminMessage) {
+                                       ^
+  symbol:   class ItemNote
+  location: class ItemNoteStorage
+C:\Users\marti\Documents\GitHub\Auction-House\src\main\java\me\elaineqheart\auctionHouse\data\persistentStorage\ItemNoteStorage.java:57: error: cannot find symbol
+    public static void setItem(ItemNote note, ItemStack item) {
+                               ^
+  symbol:   class ItemNote
+  location: class ItemNoteStorage
+C:\Users\marti\Documents\GitHub\Auction-House\src\main\java\me\elaineqheart\auctionHouse\data\persistentStorage\ItemNoteStorage.java:62: error: cannot find symbol
+    public static void setAuctionTime(ItemNote note, long time) {
+                                      ^
+  symbol:   class ItemNote
+  location: class ItemNoteStorage
+C:\Users\marti\Documents\GitHub\Auction-House\src\main\java\me\elaineqheart\auctionHouse\data\persistentStorage\ItemNoteStorage.java:67: error: cannot find symbol
+    public static void setPartiallySoldAmountLeft(ItemNote note, int amount) {
+                                                  ^
+  symbol:   class ItemNote
+  location: class ItemNoteStorage
+C:\Users\marti\Documents\GitHub\Auction-House\src\main\java\me\elaineqheart\auctionHouse\data\persistentStorage\ItemNoteStorage.java:72: error: cannot find symbol
+    public static void setPrice(ItemNote note, double amount) {
+                                ^
+  symbol:   class ItemNote
+  location: class ItemNoteStorage
+C:\Users\marti\Documents\GitHub\Auction-House\src\main\java\me\elaineqheart\auctionHouse\data\persistentStorage\ItemNoteStorage.java:77: error: cannot find symbol
+    public static void addBid(ItemNote note, Player player, double amount) {
+                              ^
+  symbol:   class ItemNote
+  location: class ItemNoteStorage
+C:\Users\marti\Documents\GitHub\Auction-House\src\main\java\me\elaineqheart\auctionHouse\data\persistentStorage\ItemNoteStorage.java:82: error: cannot find symbol
+    public static void removeBid(Player player, ItemNote note) {
+                                                ^
+  symbol:   class ItemNote
+  location: class ItemNoteStorage
+C:\Users\marti\Documents\GitHub\Auction-House\src\main\java\me\elaineqheart\auctionHouse\data\ram\AuctionHouseStorage.java:17: error: cannot find symbol
+    private static final HashMap<UUID, ItemNote> notes = new HashMap<>();
+                                       ^
+  symbol:   class ItemNote
+  location: class AuctionHouseStorage
+C:\Users\marti\Documents\GitHub\Auction-House\src\main\java\me\elaineqheart\auctionHouse\data\ram\AuctionHouseStorage.java:20: error: cannot find symbol
+    private static void addToLists(ItemNote note) {
+                                   ^
+  symbol:   class ItemNote
+  location: class AuctionHouseStorage
+C:\Users\marti\Documents\GitHub\Auction-House\src\main\java\me\elaineqheart\auctionHouse\data\ram\AuctionHouseStorage.java:50: error: cannot find symbol
+    public static void add(ItemNote note) {
+                           ^
+  symbol:   class ItemNote
+  location: class AuctionHouseStorage
+C:\Users\marti\Documents\GitHub\Auction-House\src\main\java\me\elaineqheart\auctionHouse\data\ram\AuctionHouseStorage.java:55: error: cannot find symbol
+    public static void set(ItemNote[] notes) {
+                           ^
+  symbol:   class ItemNote
+  location: class AuctionHouseStorage
+C:\Users\marti\Documents\GitHub\Auction-House\src\main\java\me\elaineqheart\auctionHouse\data\ram\AuctionHouseStorage.java:75: error: cannot find symbol
+    public static void remove(ItemNote item) {
+                              ^
+  symbol:   class ItemNote
+  location: class AuctionHouseStorage
+C:\Users\marti\Documents\GitHub\Auction-House\src\main\java\me\elaineqheart\auctionHouse\data\ram\AuctionHouseStorage.java:81: error: cannot find symbol
+    public static boolean canCollectBid(ItemNote item, UUID player) {
+                                        ^
+  symbol:   class ItemNote
+  location: class AuctionHouseStorage
+C:\Users\marti\Documents\GitHub\Auction-House\src\main\java\me\elaineqheart\auctionHouse\data\ram\AuctionHouseStorage.java:104: error: cannot find symbol
+    public static List<ItemNote> getAll() {
+                       ^
+  symbol:   class ItemNote
+  location: class AuctionHouseStorage
+C:\Users\marti\Documents\GitHub\Auction-House\src\main\java\me\elaineqheart\auctionHouse\data\ram\AuctionHouseStorage.java:108: error: cannot find symbol
+    public static List<ItemNote> getSortedList(ItemNoteStorage.SortMode mode, AhConfiguration c) {
+                                                                              ^
+  symbol:   class AhConfiguration
+  location: class AuctionHouseStorage
+C:\Users\marti\Documents\GitHub\Auction-House\src\main\java\me\elaineqheart\auctionHouse\data\ram\AuctionHouseStorage.java:108: error: cannot find symbol
+    public static List<ItemNote> getSortedList(ItemNoteStorage.SortMode mode, AhConfiguration c) {
+                       ^
+  symbol:   class ItemNote
+  location: class AuctionHouseStorage
+C:\Users\marti\Documents\GitHub\Auction-House\src\main\java\me\elaineqheart\auctionHouse\data\ram\AuctionHouseStorage.java:129: error: cannot find symbol
+    public static void applyWhitelist(List<ItemNote> notes, List<Map<?, ?>> whitelist) {
+                                           ^
+  symbol:   class ItemNote
+  location: class AuctionHouseStorage
+C:\Users\marti\Documents\GitHub\Auction-House\src\main\java\me\elaineqheart\auctionHouse\data\ram\AuctionHouseStorage.java:150: error: cannot find symbol
+    public static List<ItemNote> getMySortedDateCreated(UUID playerID) { // use only for online players
+                       ^
+  symbol:   class ItemNote
+  location: class AuctionHouseStorage
+C:\Users\marti\Documents\GitHub\Auction-House\src\main\java\me\elaineqheart\auctionHouse\data\ram\AuctionHouseStorage.java:162: error: cannot find symbol
+    public static ItemNote getNote(UUID noteID) {
+                  ^
+  symbol:   class ItemNote
+  location: class AuctionHouseStorage
+C:\Users\marti\Documents\GitHub\Auction-House\src\main\java\me\elaineqheart\auctionHouse\data\ram\AuctionHouseStorage.java:166: error: cannot find symbol
+    public static List<ItemNote> getMyBids(UUID playerID) {
+                       ^
+  symbol:   class ItemNote
+  location: class AuctionHouseStorage
+C:\Users\marti\Documents\GitHub\Auction-House\src\main\java\me\elaineqheart\auctionHouse\data\persistentStorage\ItemNoteStorage.java:24: error: cannot find symbol
+        ItemNote itemNote = new ItemNote(p, item, price, isBIDAuction);
+        ^
+  symbol:   class ItemNote
+  location: class ItemNoteStorage
+C:\Users\marti\Documents\GitHub\Auction-House\src\main\java\me\elaineqheart\auctionHouse\data\persistentStorage\ItemNoteStorage.java:24: error: cannot find symbol
+        ItemNote itemNote = new ItemNote(p, item, price, isBIDAuction);
+                                ^
+  symbol:   class ItemNote
+  location: class ItemNoteStorage
+C:\Users\marti\Documents\GitHub\Auction-House\src\main\java\me\elaineqheart\auctionHouse\data\persistentStorage\ItemNoteStorage.java:96: error: cannot find symbol
+        AuctionHouseStorage.set(new ItemNote[0]);
+                                    ^
+  symbol:   class ItemNote
+  location: class ItemNoteStorage
+C:\Users\marti\Documents\GitHub\Auction-House\src\main\java\me\elaineqheart\auctionHouse\data\ram\AuctionHouseStorage.java:58: error: cannot find symbol
+        for (ItemNote note : notes) {
+             ^
+  symbol:   class ItemNote
+  location: class AuctionHouseStorage
+C:\Users\marti\Documents\GitHub\Auction-House\src\main\java\me\elaineqheart\auctionHouse\data\ram\AuctionHouseStorage.java:190: error: cannot find symbol
+            ItemNote note = notes.get(noteID);
+            ^
+  symbol:   class ItemNote
+  location: class AuctionHouseStorage
+C:\Users\marti\Documents\GitHub\Auction-House\src\main\java\me\elaineqheart\auctionHouse\GUI\impl\CollectSoldItemGUI.java:159: error: cannot find symbol
+        return Math.floor((price * 100 * (1 - SettingManager.taxRate))) / 100;
+                                              ^
+  symbol:   variable SettingManager
+  location: class CollectSoldItemGUI
+Note: C:\Users\marti\Documents\GitHub\Auction-House\src\main\java\me\elaineqheart\auctionHouse\data\persistentStorage\local\configs\SoundsConfig.java uses or overrides a deprecated API.
+Note: Recompile with -Xlint:deprecation for details.
+30 errors
+
+[Incubating] Problems report is available at: file:///C:/Users/marti/Documents/GitHub/Auction-House/build/reports/problems/problems-report.html
+
+FAILURE: Build failed with an exception.
+
+* What went wrong:
+Execution failed for task ':compileJava'.
+> Compilation failed; see the compiler output below.
+  Note: C:\Users\marti\Documents\GitHub\Auction-House\src\main\java\me\elaineqheart\auctionHouse\data\persistentStorage\local\configs\SoundsConfig.java uses or overrides a deprecated API.
+  Note: Recompile with -Xlint:deprecation for details.
+  C:\Users\marti\Documents\GitHub\Auction-House\src\main\java\me\elaineqheart\auctionHouse\data\persistentStorage\ItemNoteStorage.java:5: error: cannot find symbol
+  import me.elaineqheart.auctionHouse.data.ram.ItemNote;
+                                              ^
+    symbol:   class ItemNote
+    location: package me.elaineqheart.auctionHouse.data.ram
+  C:\Users\marti\Documents\GitHub\Auction-House\src\main\java\me\elaineqheart\auctionHouse\data\persistentStorage\ItemNoteStorage.java:37: error: cannot find symbol
+      public static void deleteNote(ItemNote note) {
+                                    ^
+    symbol:   class ItemNote
+    location: class ItemNoteStorage
+  C:\Users\marti\Documents\GitHub\Auction-House\src\main\java\me\elaineqheart\auctionHouse\data\persistentStorage\ItemNoteStorage.java:42: error: cannot find symbol
+      public static void setBuyerName(ItemNote note, String buyerName) {
+                                      ^
+    symbol:   class ItemNote
+    location: class ItemNoteStorage
+  C:\Users\marti\Documents\GitHub\Auction-House\src\main\java\me\elaineqheart\auctionHouse\data\persistentStorage\ItemNoteStorage.java:47: error: cannot find symbol
+      public static void setSold(ItemNote note, boolean isSold) {
+                                 ^
+    symbol:   class ItemNote
+    location: class ItemNoteStorage
+  C:\Users\marti\Documents\GitHub\Auction-House\src\main\java\me\elaineqheart\auctionHouse\data\persistentStorage\ItemNoteStorage.java:52: error: cannot find symbol
+      public static void setAdminMessage(ItemNote note, String adminMessage) {
+                                         ^
+    symbol:   class ItemNote
+    location: class ItemNoteStorage
+  C:\Users\marti\Documents\GitHub\Auction-House\src\main\java\me\elaineqheart\auctionHouse\data\persistentStorage\ItemNoteStorage.java:57: error: cannot find symbol
+      public static void setItem(ItemNote note, ItemStack item) {
+                                 ^
+    symbol:   class ItemNote
+    location: class ItemNoteStorage
+  C:\Users\marti\Documents\GitHub\Auction-House\src\main\java\me\elaineqheart\auctionHouse\data\persistentStorage\ItemNoteStorage.java:62: error: cannot find symbol
+      public static void setAuctionTime(ItemNote note, long time) {
+                                        ^
+    symbol:   class ItemNote
+    location: class ItemNoteStorage
+  C:\Users\marti\Documents\GitHub\Auction-House\src\main\java\me\elaineqheart\auctionHouse\data\persistentStorage\ItemNoteStorage.java:67: error: cannot find symbol
+      public static void setPartiallySoldAmountLeft(ItemNote note, int amount) {
+                                                    ^
+    symbol:   class ItemNote
+    location: class ItemNoteStorage
+  C:\Users\marti\Documents\GitHub\Auction-House\src\main\java\me\elaineqheart\auctionHouse\data\persistentStorage\ItemNoteStorage.java:72: error: cannot find symbol
+      public static void setPrice(ItemNote note, double amount) {
+                                  ^
+    symbol:   class ItemNote
+    location: class ItemNoteStorage
+  C:\Users\marti\Documents\GitHub\Auction-House\src\main\java\me\elaineqheart\auctionHouse\data\persistentStorage\ItemNoteStorage.java:77: error: cannot find symbol
+      public static void addBid(ItemNote note, Player player, double amount) {
+                                ^
+    symbol:   class ItemNote
+    location: class ItemNoteStorage
+  C:\Users\marti\Documents\GitHub\Auction-House\src\main\java\me\elaineqheart\auctionHouse\data\persistentStorage\ItemNoteStorage.java:82: error: cannot find symbol
+      public static void removeBid(Player player, ItemNote note) {
+                                                  ^
+    symbol:   class ItemNote
+    location: class ItemNoteStorage
+  C:\Users\marti\Documents\GitHub\Auction-House\src\main\java\me\elaineqheart\auctionHouse\data\ram\AuctionHouseStorage.java:17: error: cannot find symbol
+      private static final HashMap<UUID, ItemNote> notes = new HashMap<>();
+                                         ^
+    symbol:   class ItemNote
+    location: class AuctionHouseStorage
+  C:\Users\marti\Documents\GitHub\Auction-House\src\main\java\me\elaineqheart\auctionHouse\data\ram\AuctionHouseStorage.java:20: error: cannot find symbol
+      private static void addToLists(ItemNote note) {
+                                     ^
+    symbol:   class ItemNote
+    location: class AuctionHouseStorage
+  C:\Users\marti\Documents\GitHub\Auction-House\src\main\java\me\elaineqheart\auctionHouse\data\ram\AuctionHouseStorage.java:50: error: cannot find symbol
+      public static void add(ItemNote note) {
+                             ^
+    symbol:   class ItemNote
+    location: class AuctionHouseStorage
+  C:\Users\marti\Documents\GitHub\Auction-House\src\main\java\me\elaineqheart\auctionHouse\data\ram\AuctionHouseStorage.java:55: error: cannot find symbol
+      public static void set(ItemNote[] notes) {
+                             ^
+    symbol:   class ItemNote
+    location: class AuctionHouseStorage
+  C:\Users\marti\Documents\GitHub\Auction-House\src\main\java\me\elaineqheart\auctionHouse\data\ram\AuctionHouseStorage.java:75: error: cannot find symbol
+      public static void remove(ItemNote item) {
+                                ^
+    symbol:   class ItemNote
+    location: class AuctionHouseStorage
+  C:\Users\marti\Documents\GitHub\Auction-House\src\main\java\me\elaineqheart\auctionHouse\data\ram\AuctionHouseStorage.java:81: error: cannot find symbol
+      public static boolean canCollectBid(ItemNote item, UUID player) {
+                                          ^
+    symbol:   class ItemNote
+    location: class AuctionHouseStorage
+  C:\Users\marti\Documents\GitHub\Auction-House\src\main\java\me\elaineqheart\auctionHouse\data\ram\AuctionHouseStorage.java:104: error: cannot find symbol
+      public static List<ItemNote> getAll() {
+                         ^
+    symbol:   class ItemNote
+    location: class AuctionHouseStorage
+  C:\Users\marti\Documents\GitHub\Auction-House\src\main\java\me\elaineqheart\auctionHouse\data\ram\AuctionHouseStorage.java:108: error: cannot find symbol
+      public static List<ItemNote> getSortedList(ItemNoteStorage.SortMode mode, AhConfiguration c) {
+                                                                                ^
+    symbol:   class AhConfiguration
+    location: class AuctionHouseStorage
+  C:\Users\marti\Documents\GitHub\Auction-House\src\main\java\me\elaineqheart\auctionHouse\data\ram\AuctionHouseStorage.java:108: error: cannot find symbol
+      public static List<ItemNote> getSortedList(ItemNoteStorage.SortMode mode, AhConfiguration c) {
+                         ^
+    symbol:   class ItemNote
+    location: class AuctionHouseStorage
+  C:\Users\marti\Documents\GitHub\Auction-House\src\main\java\me\elaineqheart\auctionHouse\data\ram\AuctionHouseStorage.java:129: error: cannot find symbol
+      public static void applyWhitelist(List<ItemNote> notes, List<Map<?, ?>> whitelist) {
+                                             ^
+    symbol:   class ItemNote
+    location: class AuctionHouseStorage
+  C:\Users\marti\Documents\GitHub\Auction-House\src\main\java\me\elaineqheart\auctionHouse\data\ram\AuctionHouseStorage.java:150: error: cannot find symbol
+      public static List<ItemNote> getMySortedDateCreated(UUID playerID) { // use only for online players
+                         ^
+    symbol:   class ItemNote
+    location: class AuctionHouseStorage
+  C:\Users\marti\Documents\GitHub\Auction-House\src\main\java\me\elaineqheart\auctionHouse\data\ram\AuctionHouseStorage.java:162: error: cannot find symbol
+      public static ItemNote getNote(UUID noteID) {
+                    ^
+    symbol:   class ItemNote
+    location: class AuctionHouseStorage
+  C:\Users\marti\Documents\GitHub\Auction-House\src\main\java\me\elaineqheart\auctionHouse\data\ram\AuctionHouseStorage.java:166: error: cannot find symbol
+      public static List<ItemNote> getMyBids(UUID playerID) {
+                         ^
+    symbol:   class ItemNote
+    location: class AuctionHouseStorage
+  C:\Users\marti\Documents\GitHub\Auction-House\src\main\java\me\elaineqheart\auctionHouse\data\persistentStorage\ItemNoteStorage.java:24: error: cannot find symbol
+          ItemNote itemNote = new ItemNote(p, item, price, isBIDAuction);
+          ^
+    symbol:   class ItemNote
+    location: class ItemNoteStorage
+  C:\Users\marti\Documents\GitHub\Auction-House\src\main\java\me\elaineqheart\auctionHouse\data\persistentStorage\ItemNoteStorage.java:24: error: cannot find symbol
+          ItemNote itemNote = new ItemNote(p, item, price, isBIDAuction);
+                                  ^
+    symbol:   class ItemNote
+    location: class ItemNoteStorage
+  C:\Users\marti\Documents\GitHub\Auction-House\src\main\java\me\elaineqheart\auctionHouse\data\persistentStorage\ItemNoteStorage.java:96: error: cannot find symbol
+          AuctionHouseStorage.set(new ItemNote[0]);
+                                      ^
+    symbol:   class ItemNote
+    location: class ItemNoteStorage
+  C:\Users\marti\Documents\GitHub\Auction-House\src\main\java\me\elaineqheart\auctionHouse\data\ram\AuctionHouseStorage.java:58: error: cannot find symbol
+          for (ItemNote note : notes) {
+               ^
+    symbol:   class ItemNote
+    location: class AuctionHouseStorage
+  C:\Users\marti\Documents\GitHub\Auction-House\src\main\java\me\elaineqheart\auctionHouse\data\ram\AuctionHouseStorage.java:190: error: cannot find symbol
+              ItemNote note = notes.get(noteID);
+              ^
+    symbol:   class ItemNote
+    location: class AuctionHouseStorage
+  C:\Users\marti\Documents\GitHub\Auction-House\src\main\java\me\elaineqheart\auctionHouse\GUI\impl\CollectSoldItemGUI.java:159: error: cannot find symbol
+          return Math.floor((price * 100 * (1 - SettingManager.taxRate))) / 100;
+                                                ^
+    symbol:   variable SettingManager
+    location: class CollectSoldItemGUI
+  30 errors
+
+* Try:
+> Check your code and dependencies to fix the compilation error(s)
+> Run with --scan to get full insights.
+
+Deprecated Gradle features were used in this build, making it incompatible with Gradle 9.0.
+
+You can use '--warning-mode all' to show the individual deprecation warnings and determine if they come from your own scripts or plugins.
+
+For more on this, please refer to https://docs.gradle.org/8.14/userguide/command_line_interface.html#sec:command_line_warnings in the Gradle documentation.
+
+BUILD FAILED in 2s
+1 actionable task: 1 executed

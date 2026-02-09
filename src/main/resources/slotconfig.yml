@@ -1,0 +1,252 @@
+# ══════════════════════════════════════════════════════════════════════════════
+# AuctionHouse - Slot Configuration
+# Define positions and materials for all GUI elements
+# ══════════════════════════════════════════════════════════════════════════════
+
+# ═══════════════════════════════════════════
+# AUCTION HOUSE GUI
+# ═══════════════════════════════════════════
+AuctionHouseGUI:
+  size: 54  # 6 rows
+  
+  # Item display slots (where auction items appear)
+  # Supports individual values (10) and ranges ("10-35")
+  item-slots:
+    - "0-44"
+
+  
+  slots:
+    search: 45
+    sort: 46
+    previous-page: 48
+    refresh: 49
+    next-page: 50
+    filter: 52
+    my-auctions: 53
+    
+  materials:
+    search: OAK_SIGN
+    search-active: SPRUCE_SIGN
+    sort: HOPPER
+    previous-page: ARROW
+    refresh: NETHER_STAR
+    next-page: ARROW
+    filter-all: POWERED_RAIL
+    filter-bin: GOLD_INGOT
+    filter-auctions: GOLD_BLOCK
+    my-auctions: ENDER_CHEST
+    filler: AIR
+    command-block: STRUCTURE_BLOCK
+
+# ═══════════════════════════════════════════
+# MY AUCTIONS GUI
+# ═══════════════════════════════════════════
+MyAuctionsGUI:
+  size: 54
+  
+  item-slots:
+    - "0-44"
+    
+  slots:
+    back: 45
+    sort: 46
+    previous-page: 48
+    refresh: 49
+    next-page: 50
+    collect-all: 52
+    info: 53
+    
+  materials:
+    back: ARROW
+    sort: HOPPER
+    previous-page: ARROW
+    refresh: NETHER_STAR
+    next-page: ARROW
+    collect-all: GOLDEN_CARROT
+    info: PAPER
+    filler: AIR
+
+# ═══════════════════════════════════════════
+# MY BIDS GUI
+# ═══════════════════════════════════════════
+MyBidsGUI:
+  size: 54
+  
+  # item-slots and pagination controls are dynamically generated based on size
+  item-slots:
+    - "0-44"
+    
+  slots:
+    back: 45
+    # previous-page and next-page are calculated dynamically but can be defined here for reference
+    previous-page: 45
+    refresh: 49
+    next-page: 53
+    
+  materials:
+    back: ARROW
+    previous-page: ARROW
+    refresh: NETHER_STAR
+    next-page: ARROW
+    filler: AIR
+
+# ═══════════════════════════════════════════
+# AUCTION VIEW GUI
+# ═══════════════════════════════════════════
+AuctionViewGUI:
+  size: 54
+  
+  slots:
+    item-display: 13
+    back: 49
+    # BIN slots
+    buy-button: 31
+    partial-buy-button: 30
+    set-amount: 32
+    # BID slots
+    bid-history: 33
+    submit-bid: 29
+    bid-explanation: 31
+    cancel-auction: 31
+    
+  materials:
+    buy-afford: TURTLE_SCUTE
+    buy-cannot-afford: ARMADILLO_SCUTE
+    set-amount: OAK_HANGING_SIGN
+    bid-history: FILLED_MAP
+    submit-bid: GOLD_NUGGET
+    bid-explanation: GOLD_INGOT
+    cannot-afford-bid: ARMADILLO_SCUTE
+    top-bid: GOLD_BLOCK
+    cancel-auction: RED_CONCRETE
+    back: ARROW
+    filler: AIR
+
+# ═══════════════════════════════════════════
+# CONFIRM BUY GUI
+# ═══════════════════════════════════════════
+ConfirmBuyGUI:
+  size: 27
+  
+  slots:
+    item-display: 13
+    confirm: 11
+    cancel: 15
+    
+  materials:
+    confirm: GREEN_BANNER
+    cancel: RED_BANNER
+    filler: BLACK_STAINED_GLASS_PANE
+
+# ═══════════════════════════════════════════
+# CONFIRM BID GUI
+# ═══════════════════════════════════════════
+ConfirmBidGUI:
+  size: 27
+  
+  slots:
+    item-display: 13
+    confirm: 11
+    cancel: 15
+    
+  materials:
+    confirm: GREEN_BANNER
+    cancel: RED_BANNER
+    filler: BLACK_STAINED_GLASS_PANE
+
+# ═══════════════════════════════════════════
+# CANCEL AUCTION GUI
+# ═══════════════════════════════════════════
+CancelAuctionGUI:
+  size: 54
+  
+  slots:
+    item-display: 13
+    confirm: 31
+    cancel: 49
+    
+  materials:
+    confirm: RED_CONCRETE
+    cancel: GREEN_BANNER
+    filler: BLACK_STAINED_GLASS_PANE
+
+# ═══════════════════════════════════════════
+# COLLECT SOLD/EXPIRED ITEM GUI
+# ═══════════════════════════════════════════
+CollectSoldItemGUI:
+  size: 54
+  
+  slots:
+    item-display: 13
+    collect: 31
+    
+  materials:
+    collect: DIAMOND
+    filler: BLACK_STAINED_GLASS_PANE
+
+CollectExpiredItemGUI:
+  size: 54
+  
+  slots:
+    item-display: 13
+    collect: 31
+    
+  materials:
+    collect: RED_DYE
+    filler: BLACK_STAINED_GLASS_PANE
+
+
+
+# ═══════════════════════════════════════════
+# ENDED AUCTION GUI
+# ═══════════════════════════════════════════
+EndedAuctionGUI:
+  size: 54
+  
+  slots:
+    item-display: 13
+    bid-history: 33
+    collect-item: 29
+    collect-coins: 29
+    back: 49
+    
+  materials:
+    collect-item: GOLD_BLOCK
+    collect-coins: GOLD_NUGGET
+    bid-history: FILLED_MAP
+    back: ARROW
+    filler: BLACK_STAINED_GLASS_PANE
+
+# ═══════════════════════════════════════════
+# ADMIN CONFIRM GUI
+# ═══════════════════════════════════════════
+AdminConfirmGUI:
+  size: 27
+  
+  slots:
+    item-display: 13
+    confirm: 11
+    cancel: 15
+    
+  materials:
+    confirm: GREEN_BANNER
+    cancel: RED_BANNER
+    filler: BLACK_STAINED_GLASS_PANE
+
+# ═══════════════════════════════════════════
+# ADMIN ACTION GUI
+# ═══════════════════════════════════════════
+AdminActionGUI:
+  size: 27
+  
+  slots:
+    item-display: 13
+    expire: 11
+    delete: 15
+    cancel: 22
+    
+  materials:
+    expire: LIME_WOOL
+    delete: RED_WOOL
+    cancel: ARROW
+    filler: BLACK_STAINED_GLASS_PANE

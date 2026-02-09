@@ -1,0 +1,70 @@
+# ===========================================
+# CONFIRM BID GUI - Confirmar Puja
+# ===========================================
+
+items:
+  submit-bid: '<color:#FFD180>ᴘᴜᴊᴀʀ'
+  cancel: '<color:#FF0000>ᴄᴀɴᴄᴇʟᴀʀ'
+  bid-explanation: '<color:#FFD180>ᴄᴀɴᴛɪᴅᴀᴅ: {price}'
+  bid-history: '<color:#FFD180>ʜɪsᴛᴏʀɪᴀʟ'
+  locked-slot: ' '
+
+lore:
+  submit-bid-lore:
+    - ''
+    - '<color:#FFD180>● <white>Nueva puja: <color:#FFD180>{price}'
+    - ''
+    - '<color:#FFD180>▶ Clic para pujar'
+
+  submit-another-bid-lore:
+    - ''
+    - '<color:#FFD180>● <white>Nueva puja: <color:#FFD180>{price}'
+    - '<gray>Tu puja anterior: <white>{previous_bid}'
+    - ''
+    - '<gray>Pagas: <color:#FFD180>{difference}'
+    - ''
+    - '<color:#FFD180>▶ Clic para pujar'
+
+  cancel-lore:
+    - ''
+    - '<red>▶ Clic para cancelar'
+
+  bid-explanation-lore:
+    - '<gray>Puja mínima: <color:#FFD180>{min_bid}'
+    - ''
+    - '<gray>Cuando la subasta termine,'
+    - '<gray>la <color:#FFD180>puja más alta <gray>gana.'
+    - ''
+    - '<color:#FFD180>▶ Clic para editar cantidad'
+
+  bid-history-lore:
+    - '<gray>Total de pujas: <white>{total_bids}'
+    
+  bid-history-entry:
+    - '<gray>{player}: <color:#FFD180>{price}'
+    - '<gray>Hace: <white>{time}'
+
+  bid-history-more:
+    - '<gray>...y {amount} más'
+
+  cannot-afford-bid-lore:
+    - ''
+    - '<color:#FFD180>● <white>Nueva puja: <color:#FFD180>{price}'
+    - ''
+    - '<red><b>¡Dinero insuficiente!'
+
+  top-bid-lore:
+    - ''
+    - '<gray>Tu puja: <color:#FFD180>{your_bid}'
+    - '<gray>Nueva puja: <white>{new_bid}'
+    - ''
+    - '<color:#FFD180>¡Ya eres el mayor pujador!'
+
+  own-bid-lore:
+    - ''
+    - '<gray>Nueva puja: <color:#FFD180>{price}'
+    - ''
+    - '<color:#FFD180>¡Esta es tu subasta!'
+
+titles:
+  main: 'ᴄᴏɴғɪʀᴍᴀʀ ᴘᴜᴊᴀ'

@@ -1,0 +1,27 @@
+# ===========================================
+# CONFIRM BUY GUI - Confirmar Compra
+# ===========================================
+
+items:
+  confirm: '<color:#0DFB00>ᴄᴏɴғɪʀᴍᴀʀ'
+  cancel: '<red>ᴄᴀɴᴄᴇʟᴀʀ'
+  locked-slot: ' '
+
+lore:
+  confirm-lore:
+    - ''
+    - '<color:#FFD180>● <white>Precio: <color:#FFD180>{price}'
+    - ''
+    - '<color:#0DFB00>▶ Clic para confirmar'
+
+  cancel-lore:
+    - ''
+    - '<red>▶ Clic para cancelar'
+
+  not-enough-money-lore:
+    - ''
+    - '<gray>Faltan <color:#FFD180>{price}'
+    - '<red><b>¡Dinero insuficiente!'
+
+titles:
+  main: 'ᴄᴏɴғɪʀᴍᴀʀ ᴄᴏᴍᴘʀᴀ'

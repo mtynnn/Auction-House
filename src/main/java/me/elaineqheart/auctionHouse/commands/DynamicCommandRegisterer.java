@@ -1,7 +1,7 @@
 package me.elaineqheart.auctionHouse.commands;
 
 import me.elaineqheart.auctionHouse.AuctionHouse;
-import me.elaineqheart.auctionHouse.data.persistentStorage.local.configs.M;
+import me.elaineqheart.auctionHouse.configuration.M;
 import org.bukkit.Bukkit;
 import org.bukkit.command.CommandExecutor;
 import org.bukkit.command.CommandMap;
@@ -14,8 +14,8 @@ import java.util.List;
 public class DynamicCommandRegisterer {
 
     public static void init() {
-        String name = M.getFormatted("commands.ah").toLowerCase();
-        String alias = M.getFormatted("commands.alias").toLowerCase();
+        String name = M.getFormatted("command-names.ah").toLowerCase();
+        String alias = M.getFormatted("command-names.alias").toLowerCase();
         List<String> aliases = alias.isEmpty() ? List.of() : List.of(alias);
         CommandExecutor executor = new AuctionHouseCommand();
         TabCompleter tabCompleter = new AuctionHouseCommand();
@@ -26,7 +26,8 @@ public class DynamicCommandRegisterer {
             CommandMap commandMap = (CommandMap) f.get(Bukkit.getServer());
 
             PluginCommand existing = AuctionHouse.getPlugin().getServer().getPluginCommand(name);
-            if (existing != null) existing.unregister(commandMap);
+            if (existing != null)
+                existing.unregister(commandMap);
 
             commandMap.register("auctionhouse", new DynamicCommand(name,
                     "opens the auction house GUI", aliases, executor, tabCompleter));

@@ -1,0 +1,42 @@
+# ===========================================
+# ADMIN CONFIRM GUI - Confirmar Acción Admin
+# ===========================================
+
+items:
+  expire: '<yellow>ᴇxᴘɪʀᴀʀ sᴜʙᴀsᴛᴀ'
+  delete: '<red>ᴇʟɪᴍɪɴᴀʀ sᴜʙᴀsᴛᴀ'
+  cancel: '<red>ᴠᴏʟᴠᴇʀ'
+  info: '<color:#FFD180>ɪɴғᴏ'
+  locked-slot: ' '
+
+lore:
+  expire-lore:
+    - ''
+    - '<gray>El jugador podrá recolectar'
+    - '<gray>el ítem como expirado'
+    - ''
+    - '<color:#FFD180>▶ Clic para expirar'
+
+  delete-lore:
+    - ''
+    - '<gray>El jugador <red>NO <gray>recibirá'
+    - '<gray>el ítem. Tú lo recolectarás.'
+    - ''
+    - '<red>▶ Clic para eliminar'
+
+  cancel-lore:
+    - ''
+    - '<gray>Clic para <color:#FFD180>volver <gray>atrás'
+
+  info-lore:
+    - '<gray>Elige una acción para'
+    - '<gray>esta subasta:'
+    - ''
+    - '<yellow>Expirar: <gray>Devuelve el ítem'
+    - '<gray>al vendedor original'
+    - ''
+    - '<red>Eliminar: <gray>Te da el ítem'
+    - '<gray>a ti como admin'
+
+titles:
+  main: 'ᴄᴏɴғɪʀᴍᴀʀ ᴀᴄᴄɪᴏ́ɴ'

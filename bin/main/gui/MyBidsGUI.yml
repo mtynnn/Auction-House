@@ -1,0 +1,61 @@
+# ===========================================
+# MY BIDS GUI - Mis Pujas
+# ===========================================
+
+items:
+  back: '<red>ᴠᴏʟᴠᴇʀ'
+  prev-page: '<red>ᴀɴᴛᴇʀɪᴏʀ'
+  prev-page-disabled: '<gray>ᴀɴᴛᴇʀɪᴏʀ'
+  next-page: '<color:#FFD180>sɪɢᴜɪᴇɴᴛᴇ'
+  next-page-disabled: '<gray>sɪɢᴜɪᴇɴᴛᴇ'
+  refresh: '<color:#FFD180>ʀᴇᴄᴀʀɢᴀʀ'
+  locked-slot: ' '
+
+lore:
+  back-lore:
+    - '<gray>Clic para <color:#FFD180>volver <gray>al menú principal'
+
+  prev-page-lore:
+    - '<gray>Página: <white>{page}/{pages}'
+    - ''
+    - '<color:#FFD180>▶ Clic para retroceder'
+
+  next-page-lore:
+    - '<gray>Página: <white>{page}/{pages}'
+    - ''
+    - '<color:#FFD180>▶ Clic para avanzar'
+
+  refresh-lore:
+    - ''
+    - '<gray>Para actualizar la lista'
+    - ''
+    - '<color:#FFD180>▶ Clic para recargar'
+
+  collect-auction-lore:
+    - ''
+    - '<color:#FFD180>● <white>Precio final: <color:#FFD180>{price}'
+    - '<gray>¡Ganaste esta subasta!'
+    - ''
+    - '<color:#FFD180>▶ Clic para recolectar'
+
+  collect-coins-lore:
+    - ''
+    - '<gray>No ganaste esta subasta'
+    - '<gray>Puedes reclamar tus monedas'
+    - ''
+    - '<gray>Ganador: <white>{winner}'
+    - '<gray>Tu puja: <color:#FFD180>{your_bid}'
+    - ''
+    - '<color:#FFD180>▶ Clic para recolectar'
+
+  active-bid-lore:
+    - ''
+    - '<color:#FFD180>● <white>Vendedor: <color:#FFD180>{seller}'
+    - '<color:#FFD180>● <white>Tu puja: <color:#FFD180>{your_bid}'
+    - '<color:#FFD180>● <white>Puja actual: <color:#FFD180>{current_bid}'
+    - '<color:#FFD180>● <white>Expira en: <color:#FFD180>{time}'
+    - ''
+    - '<color:#FFD180>▶ Clic para ver subasta'
+
+titles:
+  main: 'ᴍɪs ᴘᴜᴊᴀs'

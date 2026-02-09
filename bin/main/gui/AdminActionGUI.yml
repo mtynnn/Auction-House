@@ -1,0 +1,27 @@
+# AdminActionGUI Configuration
+# Simple admin menu with expire and delete options
+
+titles:
+  default: "<color:#FFD180>Acción de Admin"
+
+items:
+  expire: "<green>Expirar (Devolver)"
+  delete: "<red>Eliminar (Destruir)"
+  cancel: "<gray>Cancelar"
+
+lore:
+  expire-lore:
+    - ""
+    - "<gray>Retira el ítem de la subasta"
+    - "<gray>y lo devuelve al vendedor."
+    - ""
+    - "<yellow>Clic para confirmar"
+  delete-lore:
+    - ""
+    - "<red>Elimina el ítem permanentemente."
+    - "<red>El vendedor NO lo recupera."
+    - ""
+    - "<yellow>Clic para confirmar"
+  cancel-lore:
+    - ""
+    - "<gray>Volver a la subasta"

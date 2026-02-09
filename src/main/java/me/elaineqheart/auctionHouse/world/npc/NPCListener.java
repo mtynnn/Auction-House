@@ -3,7 +3,7 @@ package me.elaineqheart.auctionHouse.world.npc;
 import me.elaineqheart.auctionHouse.AuctionHouse;
 import me.elaineqheart.auctionHouse.GUI.impl.AuctionHouseGUI;
 import me.elaineqheart.auctionHouse.GUI.other.Sounds;
-import me.elaineqheart.auctionHouse.data.persistentStorage.local.SettingManager;
+import me.elaineqheart.auctionHouse.configuration.SettingManager;
 import org.bukkit.NamespacedKey;
 import org.bukkit.entity.ArmorStand;
 import org.bukkit.entity.Player;

@@ -1,0 +1,87 @@
+# ===========================================
+# MY AUCTIONS GUI - Mis Subastas
+# ===========================================
+
+items:
+  back: '<red>ᴠᴏʟᴠᴇʀ'
+  sort: '<color:#FFD180>ᴏʀᴅᴇɴᴀʀ'
+  prev-page: '<red>ᴀɴᴛᴇʀɪᴏʀ'
+  prev-page-disabled: '<gray>ᴀɴᴛᴇʀɪᴏʀ'
+  next-page: '<color:#FFD180>sɪɢᴜɪᴇɴᴛᴇ'
+  next-page-disabled: '<gray>sɪɢᴜɪᴇɴᴛᴇ'
+  refresh: '<color:#FFD180>ʀᴇᴄᴀʀɢᴀʀ'
+  info: '<color:#FFD180>ɪɴғᴏ'
+  locked-slot: ' '
+
+lore:
+  back-lore:
+    - '<gray>Clic para <color:#FFD180>volver <gray>al menú principal'
+
+  filter-lore:
+    divider-top: ' '
+    all: '<color:#FFD180>● Todas las subastas'
+    all-inactive: '<white>● Todas las subastas'
+    sold: '<color:#FFD180>● Ítems vendidos'
+    sold-inactive: '<white>● Ítems vendidos'
+    expired: '<color:#FFD180>● Ítems expirados'
+    expired-inactive: '<white>● Ítems expirados'
+    active: '<color:#FFD180>● Subastas activas'
+    active-inactive: '<white>● Subastas activas'
+    divider-bottom: ' '
+    click-to-switch: '<white>Clic para cambiar'
+
+  refresh-lore:
+    - ''
+    - '<gray>Vender ítems: <white>/ah sell (precio)'
+    - ''
+    - '<color:#FFD180>▶ Clic para recargar'
+
+  info-lore:
+    - '<gray>Información sobre tus subastas'
+    - ''
+    - '<gray>Impuesto actual: <color:#FFD180>{tax}%'
+    - ''
+    - '<dark_gray>Plugin por ElaineQheart'
+
+  item-sold-lore:
+    - ''
+    - '<color:#FFD180>● <white>Precio: <color:#FFD180>{price}'
+    - '<color:#FFD180>● <white>Comprador: <color:#FFD180>{buyer}'
+    - ''
+    - '<gold><b>¡Vendido!'
+    - ''
+    - '<color:#FFD180>▶ Clic para recolectar'
+
+  item-expired-lore:
+    - ''
+    - '<color:#FFD180>● <white>Precio: <color:#FFD180>{price}'
+    - ''
+    - '<red><b>¡Expirado!'
+    - ''
+    - '<color:#FFD180>▶ Clic para recolectar'
+
+  item-active-lore:
+    - ''
+    - '<color:#FFD180>● <white>Precio: <color:#FFD180>{price}'
+    - '<color:#FFD180>● <white>Expira en: <color:#FFD180>{time}'
+    - ''
+    - '<color:#FFD180>▶ Clic para cancelar'
+
+  item-admin-expired-lore:
+    - ''
+    - '<color:#FFD180>● <white>Precio: <color:#FFD180>{price}'
+    - '<color:#FFD180>● <white>Razón: <white>{reason}'
+    - ''
+    - '<red><b>¡Expirado por moderador!'
+    - ''
+    - '<color:#FFD180>▶ Clic para recolectar'
+
+  cancel-bid-auction-lore:
+    - ''
+    - '<gray>Puedes cancelar subastas'
+    - '<gray>siempre que tengan <red>0 <gray>pujas'
+    - ''
+    - '<color:#FFD180>▶ Clic para cancelar'
+
+titles:
+  main: 'ᴍɪs sᴜʙᴀsᴛᴀs'
