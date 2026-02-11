@@ -50,10 +50,27 @@ public class StringUtils {
         return MINI_MESSAGE.deserialize(text);
     }
 
+    /**
+     * Escape MiniMessage tags in text to prevent them from being parsed.
+     * Use this for player names or other user input that might contain < or >
+     * characters.
+     * 
+     * @param text The text to escape
+     * @return The escaped text safe for use in MiniMessage
+     */
+    public static String escapeMiniMessage(String text) {
+        if (text == null || text.isEmpty())
+            return text;
+        // Escape tags by replacing < with \< and > with \>
+        return text.replace("\\", "\\\\")
+                .replace("<", "\\<")
+                .replace(">", "\\>");
+    }
+
     public static String getTime(Long seconds, boolean convertDays) {
         // Handle infinite duration (-1)
         if (seconds == null || seconds < 0) {
-            return colorize("<color:#FFD180>" + SettingManager.timeUnitNever + "</color>");
+            return SettingManager.timeUnitNever;
         }
 
         long days = seconds / (24 * 3600);
@@ -100,7 +117,7 @@ public class StringUtils {
                     .append(secs).append(" ").append(secUnit);
         }
 
-        return colorize("<yellow>" + result.toString().trim() + "</yellow>");
+        return result.toString().trim();
     }
 
     public static String getTimeTrimmed(long seconds) {
@@ -131,6 +148,14 @@ public class StringUtils {
         return M.getFormatted("placeholders.number", "%input%", formatNumberPlain(number));
     }
 
+    public static String formatNumberMM(double number) {
+        return M.getMM("placeholders.number", "%input%", formatNumberPlain(number));
+    }
+
+    public static String formatNumberMM(String number) {
+        return M.getMM("placeholders.number", "%input%", number);
+    }
+
     public static String formatNumberPlain(double number) {
         if (Double.isInfinite(number) || Double.isNaN(number)) {
             return "---";
@@ -151,18 +176,49 @@ public class StringUtils {
                 "%currency-symbol%", M.getFormatted("placeholders.currency-symbol"));
     }
 
+    public static String formatPriceMM(double price) {
+        return M.getMM("placeholders.price",
+                "%number%", formatNumberMM(price),
+                "%currency-symbol%", M.getMM("placeholders.currency-symbol"));
+    }
+
     public static String formatPrice(String price) {
         return M.getFormatted("placeholders.price",
                 "%number%", formatNumber(price),
                 "%currency-symbol%", M.getFormatted("placeholders.currency-symbol"));
     }
 
+    public static String formatPriceMM(String price) {
+        return M.getMM("placeholders.price",
+                "%number%", formatNumberMM(price),
+                "%currency-symbol%", M.getMM("placeholders.currency-symbol"));
+    }
+
+    public static String formatPriceK(double price) {
+        return M.getFormatted("placeholders.price-k", "%number%", formatNumber(price));
+    }
+
+    public static String formatPriceKMM(double price) {
+        return M.getMM("placeholders.price-k", "%number%", formatNumberMM(price));
+    }
+
     public static String getItemName(ItemStack item) {
+        return M.adventureApi(getItemNameMM(item));
+    }
+
+    public static String getItemNameMM(ItemStack item) {
         if (item == null || item.getType().isAir()) {
             return "Air";
         }
         if (item.getItemMeta() != null && item.getItemMeta().hasDisplayName()) {
-            return ChatColor.RESET.toString() + ChatColor.ITALIC.toString() + item.getItemMeta().getDisplayName();
+            // Convert legacy display name to MiniMessage components, then back to
+            // MiniMessage string
+            // to ensure no § codes are present in the final MM string.
+            // We wrap in <reset><italic:false> to match default Minecraft item name styling
+            net.kyori.adventure.text.Component component = M.getLegacySerializer()
+                    .deserialize(item.getItemMeta().getDisplayName());
+            String mmString = M.getMiniMessage().serialize(component);
+            return "<reset><italic:false>" + mmString;
         }
 
         // Fallback to type name
@@ -174,7 +230,7 @@ public class StringUtils {
                 sb.append(Character.toUpperCase(word.charAt(0))).append(word.substring(1)).append(" ");
             }
         }
-        return ChatColor.RESET + sb.toString().trim();
+        return "<reset>" + sb.toString().trim();
     }
 
     public static double parsePositiveNumber(String input) {

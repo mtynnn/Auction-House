@@ -26,6 +26,8 @@ lore:
 
   filter-lore:
     divider-top: ' '
+    recently-posted: '<color:#FFD180>● Últimos publicados'
+    recently-posted-inactive: '<white>● Últimos publicados'
     highest-price: '<color:#FFD180>● Más caros'
     highest-price-inactive: '<white>● Más caros'
     lowest-price: '<color:#FFD180>● Más baratos'

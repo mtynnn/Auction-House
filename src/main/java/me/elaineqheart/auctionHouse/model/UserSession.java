@@ -72,7 +72,7 @@ public class UserSession implements Cloneable {
         if (currentConfigurations.containsKey(p)) {
             config = currentConfigurations.get(p).clone();
         } else {
-            config = new UserSession(0, AuctionHouseGUI.Sort.HIGHEST_PRICE, "", p, false);
+            config = new UserSession(0, AuctionHouseGUI.Sort.RECENTLY_POSTED, "", p, false);
         }
         config.isAdmin = p.hasPermission(SettingManager.permissionModerate);
         return config;
@@ -84,6 +84,10 @@ public class UserSession implements Cloneable {
 
     public static void clearAll() {
         currentConfigurations.clear();
+    }
+
+    public static int getActiveSessions() {
+        return currentConfigurations.size();
     }
 
     public static void loadInstance(Player p, UserSession c) {
@@ -188,7 +192,7 @@ public class UserSession implements Cloneable {
 
     public AuctionHouseGUI.Sort getCurrentSort() {
         if (currentSort == null)
-            currentSort = AuctionHouseGUI.Sort.HIGHEST_PRICE;
+            currentSort = AuctionHouseGUI.Sort.RECENTLY_POSTED;
         return currentSort;
     }
 

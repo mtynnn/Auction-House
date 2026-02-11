@@ -54,6 +54,16 @@ public class PlayerPreferences {
         dao.save(player, json);
     }
 
+    /**
+     * Synchronous save - use during plugin disable
+     */
+    public void saveInstanceSync(UUID player, UserSession c) {
+        if (c == null)
+            return;
+        String json = gson.toJson(c);
+        dao.saveSync(player, json);
+    }
+
     public void loadInstance(Player p) {
         dao.load(p.getUniqueId()).thenAccept(json -> {
             if (json != null) {
@@ -83,8 +93,9 @@ public class PlayerPreferences {
     }
 
     public void disable() {
+        // Use synchronous save during shutdown to avoid task registration errors
         for (Player p : Bukkit.getOnlinePlayers()) {
-            saveInstance(p.getUniqueId(), UserSession.getInstance(p));
+            saveInstanceSync(p.getUniqueId(), UserSession.getInstance(p));
         }
     }
 

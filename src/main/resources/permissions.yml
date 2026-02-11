@@ -1,18 +1,34 @@
-auction-slots:
-  guardian: 6
-  ascendido: 9
-  arcano: 12
-  elite: 15
-  leyenda: 18
-bin-auction-duration:
-bid-auction-duration:
+# ══════════════════════════════════════════════════════════════════════════════
+# Permission-based Auction Limits
+# 
+# IMPORTANTE: Debes configurar estos permisos en LuckPerms:
+# /lp group guardian permission set auctionhouse.slots.guardian
+# /lp group ascendido permission set auctionhouse.slots.ascendido
+# /lp group arcano permission set auctionhouse.slots.arcano
+# /lp group elite permission set auctionhouse.slots.elite
+# /lp group leyenda permission set auctionhouse.slots.leyenda
+#
+# O usa herencia de permisos en el group parent
+# ══════════════════════════════════════════════════════════════════════════════
 
-#    custom.example.permission: 50
+auction-slots:
+  auctionhouse.slots.guardian: 6
+  auctionhouse.slots.ascendido: 9
+  auctionhouse.slots.arcano: 12
+  auctionhouse.slots.elite: 15
+  auctionhouse.slots.leyenda: 18
+bin-auction-duration:
+  # auctionhouse.duration.vip: 259200 # 3 days in seconds
+bid-auction-duration:
+  # auctionhouse.duration.premium: 10800 # 3 hours in seconds
+
+# Ejemplo de configuración completa:
 #  bin-auction-duration:
-#    vip: 259200 # 3 days = 259200 seconds
-#    mvp: 345600 # 4 days
-#    custom.example.permission: 432000 # 5 days
+#    auctionhouse.duration.vip: 259200 # 3 días = 259200 segundos
+#    auctionhouse.duration.mvp: 345600 # 4 días
 #  bid-auction-duration:
-#    vip: 10800 # 3 hours
-#    mvp: 10800 # 3 hours
-#    custom.example.permission: 86400 # 24 hours
+#    auctionhouse.duration.vip: 10800 # 3 horas
+#    auctionhouse.duration.mvp: 10800 # 3 horas
+#
+# Luego en LuckPerms:
+# /lp group vip permission set auctionhouse.duration.vip

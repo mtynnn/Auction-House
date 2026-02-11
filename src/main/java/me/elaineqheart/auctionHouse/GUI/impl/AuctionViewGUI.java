@@ -280,7 +280,7 @@ public class AuctionViewGUI extends InventoryGUI implements Runnable {
             List<String> lore = new ArrayList<>();
             for (Bid bid : note.getBidHistoryList()) {
                 lore.add(GuiConfigManager.auctionView().getLoreLine("bid-history-entry",
-                        "{player}", bid.getPlayerName(),
+                        "{player}", StringUtils.escapeMiniMessage(bid.getPlayerName()),
                         "{amount}", String.format("%.2f", bid.getPrice())));
             }
             if (lore.isEmpty()) {

@@ -11,6 +11,7 @@ import me.elaineqheart.auctionHouse.configuration.M;
 import me.elaineqheart.auctionHouse.configuration.SlotConfigManager;
 import me.elaineqheart.auctionHouse.model.*;
 import me.elaineqheart.auctionHouse.manager.ItemManager;
+import me.elaineqheart.auctionHouse.util.StringUtils;
 import me.elaineqheart.auctionHouse.vault.VaultHook;
 import net.md_5.bungee.api.chat.ClickEvent;
 import net.md_5.bungee.api.chat.TextComponent;
@@ -146,7 +147,7 @@ public class ConfirmBidGUI extends InventoryGUI {
                         double difference = price - note.getBid(bidder);
                         bidder.sendMessage(M.getFormatted("chat.outbid.prefix",
                                 "%price%", String.format("%.2f", difference),
-                                "%player%", p.getDisplayName(),
+                                "%player%", StringUtils.escapeMiniMessage(p.getDisplayName()),
                                 "%item%", note.getItemName()));
                         TextComponent click = new TextComponent(M.getFormatted("chat.outbid.interaction"));
                         click.setClickEvent(new ClickEvent(ClickEvent.Action.RUN_COMMAND,

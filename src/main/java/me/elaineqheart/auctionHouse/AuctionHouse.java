@@ -6,6 +6,7 @@ import me.elaineqheart.auctionHouse.GUI.GUIManager;
 import me.elaineqheart.auctionHouse.commands.DynamicCommandRegisterer;
 import me.elaineqheart.auctionHouse.manager.AuctionManager;
 import me.elaineqheart.auctionHouse.configuration.ConfigManager;
+import me.elaineqheart.auctionHouse.configuration.SlotConfigManager;
 import me.elaineqheart.auctionHouse.listeners.UserSessionListener;
 import me.elaineqheart.auctionHouse.listeners.PlayerJoinCollectListener;
 import me.elaineqheart.auctionHouse.world.displays.DisplayListener;
@@ -60,18 +61,33 @@ public final class AuctionHouse extends JavaPlugin {
 
         // Load configs BEFORE anything that depends on SettingManager/M
         ConfigManager.setupConfigs();
+        me.elaineqheart.auctionHouse.configuration.SettingManager.loadData();
 
         databaseManager = new me.elaineqheart.auctionHouse.database.DatabaseManager(this);
         databaseManager.initialize();
 
+        // CRITICAL: Check if database actually initialized successfully before proceeding
+        // This prevents NoClassDefFoundError when PlugMan reloads and DB fails
+        if (!databaseManager.isInitialized()) {
+            getLogger().severe("[PlugMan-Compatible] Database not initialized - stopping onEnable to prevent ClassNotFoundException");
+            return; // Exit early - onDisable will be called by Bukkit after disablePlugin()
+        }
+
         // Load DB-dependent data (banned players, blacklist, migrations)
         // Must happen AFTER databaseManager is initialized
-        ConfigManager.loadServerData();
+        try {
+            ConfigManager.loadServerData();
+        } catch (NoClassDefFoundError | Exception e) {
+            getLogger().severe("[PlugMan-Compatible] Could not load server data: " + e.getMessage());
+            getLogger().severe("[PlugMan-Compatible] This usually means database initialization failed.");
+            return;
+        }
 
         RegisteredServiceProvider<Economy> rsp = getServer().getServicesManager().getRegistration(Economy.class);
         if (rsp == null) {
-            Bukkit.getLogger().severe("No registered Vault provider found!");
+            Bukkit.getLogger().severe("[PlugMan-Compatible] No registered Vault provider found!");
             getServer().getPluginManager().disablePlugin(this);
+            return;
         }
 
         // Wrap ALL listener registrations in try-catch to prevent
@@ -102,29 +118,40 @@ public final class AuctionHouse extends JavaPlugin {
             getLogger().warning("Could not register KillListener: " + e.getMessage());
         }
 
-        System.out.println("[AuctionHouse-DEBUG] ========================================");
-        System.out.println("[AuctionHouse-DEBUG]   BUILD ID: REVISION-760-BREAKDOWN-V1");
-        System.out.println("[AuctionHouse-DEBUG] ========================================");
-        System.out.println("[AuctionHouse-DEBUG] Loading auctions...");
-        try {
-            AuctionManager.getInstance().loadAuctions();
-            System.out.println("[AuctionHouse-DEBUG] AuctionManager.loadAuctions() finished.");
-        } catch (Exception e) {
-            getLogger().warning("Could not load auctions: " + e.getMessage());
-            e.printStackTrace();
-        }
+        // Load auctions asynchronously to not block server startup
+        getLogger().info("Loading auctions in background...");
+        Bukkit.getScheduler().runTaskAsynchronously(this, () -> {
+            try {
+                long asyncStart = System.currentTimeMillis();
+                AuctionManager.getInstance().loadAuctions();
+                AuctionManager.getInstance().setLoaded(true);
+                long duration = System.currentTimeMillis() - asyncStart;
+                getLogger().info("Loaded auctions in " + duration + "ms (async)");
+            } catch (Exception e) {
+                getLogger().severe("Failed to load auctions: " + e.getMessage());
+                e.printStackTrace();
+            }
+        });
 
         try {
             DynamicCommandRegisterer.init();
-            System.out.println("[AuctionHouse-DEBUG] Commands initialized.");
         } catch (Exception e) {
             getLogger().warning("Could not register commands: " + e.getMessage());
         }
         try {
             UpdateDisplay.init();
-            System.out.println("[AuctionHouse-DEBUG] Displays initialized.");
         } catch (Exception e) {
             getLogger().warning("Could not init displays: " + e.getMessage());
+        }
+
+        // Register PlaceholderAPI expansion if available
+        if (Bukkit.getPluginManager().getPlugin("PlaceholderAPI") != null) {
+            try {
+                new me.elaineqheart.auctionHouse.placeholder.AuctionHousePlaceholders(this).register();
+                getLogger().info("PlaceholderAPI expansion registered successfully");
+            } catch (Exception e) {
+                getLogger().warning("Could not register PlaceholderAPI expansion: " + e.getMessage());
+            }
         }
 
         getLogger().info("AuctionHouse enabled in " + (System.currentTimeMillis() - start) + "ms");
@@ -132,21 +159,27 @@ public final class AuctionHouse extends JavaPlugin {
 
     @Override
     public void onDisable() {
+        getLogger().info("[PlugMan-Compatible] Starting clean shutdown...");
+        
         // Each step is wrapped in try-catch to prevent cascading failures
         // when onDisable is called during a failed onEnable (e.g. DB not available)
 
         // 1. Save player preferences before clearing sessions
         try {
-            if (ConfigManager.playerPreferences != null)
+            if (ConfigManager.playerPreferences != null) {
                 ConfigManager.playerPreferences.disable();
+                getLogger().info("[PlugMan-Compatible] Player preferences saved");
+            }
         } catch (Exception e) {
             getLogger().warning("Could not save player preferences: " + e.getMessage());
         }
 
         // 2. Close all open GUIs
         try {
-            if (guiManager != null)
+            if (guiManager != null) {
                 guiManager.forceCloseAll();
+                getLogger().info("[PlugMan-Compatible] GUIs closed");
+            }
         } catch (Exception e) {
             getLogger().warning("Could not close GUIs: " + e.getMessage());
         }
@@ -155,6 +188,7 @@ public final class AuctionHouse extends JavaPlugin {
         try {
             TaskManager.cancelAll();
             Bukkit.getScheduler().cancelTasks(this);
+            getLogger().info("[PlugMan-Compatible] All tasks cancelled (" + TaskManager.getTaskCount() + " tracked tasks)");
         } catch (Exception e) {
             getLogger().warning("Could not cancel tasks: " + e.getMessage());
         }
@@ -162,14 +196,15 @@ public final class AuctionHouse extends JavaPlugin {
         // 4. Clear user sessions
         try {
             UserSession.clearAll();
+            getLogger().info("[PlugMan-Compatible] User sessions cleared");
         } catch (Exception e) {
             getLogger().warning("Could not clear sessions: " + e.getMessage());
         }
 
         // 5. Clear display caches
         try {
-            UpdateDisplay.displays.clear();
-            UpdateDisplay.locations.clear();
+            UpdateDisplay.clearAll();
+            getLogger().info("[PlugMan-Compatible] Display caches cleared");
         } catch (Exception e) {
             getLogger().warning("Could not clear displays: " + e.getMessage());
         }
@@ -177,29 +212,44 @@ public final class AuctionHouse extends JavaPlugin {
         // 6. Reset AuctionManager singleton (clears all RAM caches)
         try {
             AuctionManager.resetInstance();
+            getLogger().info("[PlugMan-Compatible] AuctionManager reset");
         } catch (Exception e) {
             getLogger().warning("Could not reset AuctionManager: " + e.getMessage());
         }
 
-        // 7. Unregister all event listeners registered by this plugin
+        // 7. Clear configuration caches
+        try {
+            SlotConfigManager.clearCaches();
+            me.elaineqheart.auctionHouse.GUI.config.GuiConfigManager.clearCaches();
+            getLogger().info("[PlugMan-Compatible] Configuration caches cleared");
+        } catch (Exception e) {
+            getLogger().warning("Could not clear config caches: " + e.getMessage());
+        }
+
+        // 8. Unregister all event listeners registered by this plugin
         try {
             org.bukkit.event.HandlerList.unregisterAll(this);
+            getLogger().info("[PlugMan-Compatible] Event handlers unregistered");
         } catch (Exception e) {
             getLogger().warning("Could not unregister listeners: " + e.getMessage());
         }
 
-        // 8. Close database connection pool (HikariCP)
+        // 9. Close database connection pool (HikariCP)
         try {
             if (databaseManager != null) {
                 databaseManager.close();
+                getLogger().info("[PlugMan-Compatible] Database connections closed");
             }
         } catch (Exception e) {
             getLogger().warning("Could not close database: " + e.getMessage());
         }
 
-        // 9. Null static references so classloader can be GC'd
+        // 10. Null static references so classloader can be GC'd
         guiManager = null;
         instance = null;
+        databaseManager = null;
+        
+        getLogger().info("[PlugMan-Compatible] Clean shutdown completed - plugin ready for reload");
     }
 
 }

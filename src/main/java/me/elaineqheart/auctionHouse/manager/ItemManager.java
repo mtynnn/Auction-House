@@ -16,13 +16,57 @@ import org.bukkit.persistence.PersistentDataType;
 import java.util.ArrayList;
 import java.util.List;
 import java.util.Objects;
+import java.util.UUID;
+import java.util.WeakHashMap;
+import java.util.Map;
 
 public class ItemManager {
 
     public static ItemStack emptyPaper;
+    // WeakHashMap allows GC to clean up unused cached items
+    private static final Map<CacheKey, ItemStack> itemCache = new WeakHashMap<>();
 
     static {
         emptyPaper = createEmptyPaper();
+    }
+
+    /**
+     * Cache key for display items. Combines auction UUID, player UUID, and admin flag.
+     */
+    private static class CacheKey {
+        private final UUID auctionId;
+        private final UUID playerId;
+        private final boolean isAdmin;
+        private final long cacheTime;
+
+        CacheKey(UUID auctionId, UUID playerId, boolean isAdmin) {
+            this.auctionId = auctionId;
+            this.playerId = playerId;
+            this.isAdmin = isAdmin;
+            this.cacheTime = System.currentTimeMillis();
+        }
+
+        @Override
+        public boolean equals(Object o) {
+            if (this == o) return true;
+            if (!(o instanceof CacheKey)) return false;
+            CacheKey cacheKey = (CacheKey) o;
+            return isAdmin == cacheKey.isAdmin &&
+                   Objects.equals(auctionId, cacheKey.auctionId) &&
+                   Objects.equals(playerId, cacheKey.playerId);
+        }
+
+        @Override
+        public int hashCode() {
+            return Objects.hash(auctionId, playerId, isAdmin);
+        }
+
+        /**
+         * Returns true if this cache entry is older than 5 seconds (item might have updated)
+         */
+        boolean isStale() {
+            return System.currentTimeMillis() - cacheTime > 5000;
+        }
     }
 
     private static ItemStack createEmptyPaper() {
@@ -47,8 +91,43 @@ public class ItemManager {
         return item;
     }
 
+    private static ItemStack createCorruptedItemPlaceholder(AuctionItem note) {
+        ItemStack item = new ItemStack(Material.BARRIER);
+        ItemMeta meta = item.getItemMeta();
+        if (meta != null) {
+            meta.setItemName(ChatColor.RED + "Corrupted Item - Missing Plugin");
+            List<String> lore = new ArrayList<>();
+            lore.add(ChatColor.GRAY + "Item ID: " + ChatColor.WHITE + note.getNoteID().toString().substring(0, 8));
+            lore.add(ChatColor.GRAY + "Seller: " + ChatColor.WHITE + note.getPlayerName());
+            lore.add(ChatColor.GRAY + "Price: " + ChatColor.GOLD + note.getPrice());
+            lore.add("");
+            lore.add(ChatColor.YELLOW + "This item has custom enchantments");
+            lore.add(ChatColor.YELLOW + "from a plugin that is not installed.");
+            lore.add("");
+            lore.add(ChatColor.RED + "Contact an admin to remove this auction.");
+            meta.setLore(lore);
+            item.setItemMeta(meta);
+        }
+        return item;
+    }
+
     public static ItemStack createItemFromNote(AuctionItem note, Player p, boolean ownAuction, boolean isAdmin) {
-        ItemStack item = note.getItem().clone();
+        // Check cache first
+        CacheKey key = new CacheKey(note.getNoteID(), p.getUniqueId(), isAdmin);
+        ItemStack cached = itemCache.get(key);
+        if (cached != null && !key.isStale()) {
+            return cached.clone(); // Return clone to prevent modification
+        }
+
+        ItemStack item = note.getItem();
+        
+        // Handle corrupted items (missing plugin dependencies)
+        if (item == null) {
+            item = createCorruptedItemPlaceholder(note);
+            return item;
+        }
+        
+        item = item.clone();
         ItemMeta meta = item.getItemMeta();
         if (meta != null) {
             List<String> lore = meta.getLore();
@@ -58,7 +137,7 @@ public class ItemManager {
             // Use the new consolidated template
             List<String> template = GuiConfigManager.auctionHouse().getLore("auction-item-lore",
                     "{price}", StringUtils.formatPrice(ownAuction ? note.getPrice() : note.getCurrentPrice()),
-                    "{seller}", note.getPlayerName(),
+                    "{seller}", StringUtils.escapeMiniMessage(note.getPlayerName()),
                     "{remaining_time}", StringUtils.getTime(note.getTimeLeft(), true));
 
             boolean isSeller = Objects.equals(note.getPlayerUUID(), p.getUniqueId());
@@ -94,13 +173,38 @@ public class ItemManager {
             meta.setLore(lore);
             item.setItemMeta(meta);
         }
+        
+        // Store in cache for future requests
+        itemCache.put(key, item.clone());
         return item;
+    }
+
+    /**
+     * Invalidates cached display items for a specific auction.
+     * Call this when an auction is updated (e.g., new bid, price changed).
+     */
+    public static void invalidateCache(UUID auctionId) {
+        itemCache.entrySet().removeIf(entry -> entry.getKey().auctionId.equals(auctionId));
+    }
+
+    /**
+     * Clears the entire item cache.
+     * Useful for plugin reloads or memory optimization.
+     */
+    public static void clearCache() {
+        itemCache.clear();
     }
 
     public static ItemStack createCollectingItemFromNote(AuctionItem note, Player p) {
         // Updated signature to include Player p if needed, matching usage in
         // CollectSoldItemGUI
         ItemStack item = note.getItem();
+        
+        // Handle corrupted items
+        if (item == null) {
+            return createCorruptedItemPlaceholder(note);
+        }
+        
         ItemMeta meta = item.getItemMeta();
         if (meta != null) {
             List<String> lore = meta.getLore();
@@ -108,10 +212,10 @@ public class ItemManager {
                 lore = new ArrayList<>();
             lore.addAll(GuiConfigManager.auctionItems().getLore("items.auction.lore.default",
                     "{price}", String.valueOf(note.getSoldPrice()),
-                    "{player}", note.getPlayerName()));
+                    "{player}", StringUtils.escapeMiniMessage(note.getPlayerName())));
             lore.addAll(GuiConfigManager.auctionItems().getLore("items.auction.lore.own-auction"));
             lore.addAll(GuiConfigManager.auctionItems().getLore("items.auction.lore.sold",
-                    "{buyer}", note.getBuyerName() != null ? note.getBuyerName() : "Unknown"));
+                    "{buyer}", StringUtils.escapeMiniMessage(note.getBuyerName() != null ? note.getBuyerName() : "Unknown")));
             item.setAmount(item.getAmount() - note.getPartiallySoldAmountLeft());
 
             meta.setLore(lore);
@@ -127,6 +231,12 @@ public class ItemManager {
 
     public static ItemStack createAdminExpireItem(AuctionItem note, String reason) {
         ItemStack item = note.getItem();
+        
+        // Handle corrupted items
+        if (item == null) {
+            return createCorruptedItemPlaceholder(note);
+        }
+        
         ItemMeta meta = item.getItemMeta();
         if (meta != null) {
             List<String> lore = meta.getLore();
@@ -134,7 +244,7 @@ public class ItemManager {
                 lore = new ArrayList<>();
             lore.addAll(GuiConfigManager.auctionItems().getLore("items.admin-expire-item.lore",
                     "{price}", String.valueOf(note.getPrice()),
-                    "{player}", note.getPlayerName(),
+                    "{player}", StringUtils.escapeMiniMessage(note.getPlayerName()),
                     "{reason}", reason));
             meta.setLore(lore);
             item.setItemMeta(meta);
@@ -151,7 +261,7 @@ public class ItemManager {
                 lore = new ArrayList<>();
             lore.addAll(GuiConfigManager.auctionItems().getLore("items.admin-delete-item.lore",
                     "{price}", String.valueOf(note.getPrice()),
-                    "{player}", note.getPlayerName(),
+                    "{player}", StringUtils.escapeMiniMessage(note.getPlayerName()),
                     "{reason}", reason));
             meta.setLore(lore);
             item.setItemMeta(meta);
@@ -160,6 +270,57 @@ public class ItemManager {
     }
 
     public static ItemStack createBuyingItemDisplay(ItemStack item) {
+        return item;
+    }
+
+    /**
+     * Create item display specifically for MyAuctionsGUI with status-specific lore
+     */
+    public static ItemStack createMyAuctionItem(AuctionItem note, Player p) {
+        ItemStack item = note.getItem();
+        
+        // Handle corrupted items
+        if (item == null) {
+            return createCorruptedItemPlaceholder(note);
+        }
+        
+        item = item.clone();
+        ItemMeta meta = item.getItemMeta();
+        if (meta != null) {
+            List<String> lore = meta.getLore();
+            if (lore == null)
+                lore = new ArrayList<>();
+
+            // Determine which lore template to use based on item state
+            List<String> template;
+            
+            if (note.isSold() || (note.isBIDAuction() && note.hasBidHistory() && note.isExpired())) {
+                // Item sold - use item-sold-lore
+                template = GuiConfigManager.myAuctions().getLore("item-sold-lore",
+                        "{price}", StringUtils.formatPrice(note.getSoldPrice()),
+                        "{buyer}", StringUtils.escapeMiniMessage(note.getBuyerName() != null ? note.getBuyerName() : "Unknown"));
+            } else if (note.isExpired()) {
+                // Item expired - check if admin expired
+                if (note.getAdminMessage() != null && !note.getAdminMessage().isEmpty()) {
+                    template = GuiConfigManager.myAuctions().getLore("item-admin-expired-lore",
+                            "{price}", StringUtils.formatPrice(note.getPrice()),
+                            "{reason}", note.getAdminMessage());
+                } else {
+                    template = GuiConfigManager.myAuctions().getLore("item-expired-lore",
+                            "{price}", StringUtils.formatPrice(note.getPrice()));
+                }
+            } else {
+                // Item active - use item-active-lore
+                template = GuiConfigManager.myAuctions().getLore("item-active-lore",
+                        "{price}", StringUtils.formatPrice(note.getPrice()),
+                        "{time}", StringUtils.getTime(note.getTimeLeft(), true));
+            }
+
+            lore.addAll(template);
+            meta.setLore(lore);
+            item.setItemMeta(meta);
+        }
+        
         return item;
     }
 

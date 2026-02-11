@@ -30,18 +30,25 @@ public class PlayerPreferencesDAO {
 
     public void save(UUID uuid, String json) {
         Bukkit.getScheduler().runTaskAsynchronously(AuctionHouse.getPlugin(), () -> {
-            DatabaseManager db = getDbManager();
-            if (db == null)
-                return; // DB not ready yet, skip silently
-            String sql = "INSERT OR REPLACE INTO player_preferences (player_uuid, data) VALUES (?, ?)";
-            try (Connection conn = db.getConnection(); PreparedStatement stmt = conn.prepareStatement(sql)) {
-                stmt.setString(1, uuid.toString());
-                stmt.setString(2, json);
-                stmt.executeUpdate();
-            } catch (SQLException e) {
-                e.printStackTrace();
-            }
+            saveSync(uuid, json);
         });
+    }
+
+    /**
+     * Synchronous save - use during plugin disable to avoid task registration errors
+     */
+    public void saveSync(UUID uuid, String json) {
+        DatabaseManager db = getDbManager();
+        if (db == null)
+            return; // DB not ready yet, skip silently
+        String sql = "INSERT OR REPLACE INTO player_preferences (player_uuid, data) VALUES (?, ?)";
+        try (Connection conn = db.getConnection(); PreparedStatement stmt = conn.prepareStatement(sql)) {
+            stmt.setString(1, uuid.toString());
+            stmt.setString(2, json);
+            stmt.executeUpdate();
+        } catch (SQLException e) {
+            e.printStackTrace();
+        }
     }
 
     public CompletableFuture<String> load(UUID uuid) {

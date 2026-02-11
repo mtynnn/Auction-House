@@ -158,6 +158,6 @@ public class CollectSoldItemGUI extends InventoryGUI implements Runnable {
     }
 
     private static double getProfit(double price) {
-        return Math.floor((price * 100 * (1 - SettingManager.taxRate))) / 100;
+        return price; // No tax applied
     }
 }

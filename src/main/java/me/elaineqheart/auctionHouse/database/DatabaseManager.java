@@ -7,6 +7,7 @@ import org.bukkit.Bukkit;
 
 import java.io.File;
 import java.sql.Connection;
+import java.sql.ResultSet;
 import java.sql.SQLException;
 import java.sql.Statement;
 
@@ -14,17 +15,25 @@ public class DatabaseManager {
 
     private HikariDataSource dataSource;
     private final AuctionHouse plugin;
+    private boolean initialized = false;
 
     public DatabaseManager(AuctionHouse plugin) {
         this.plugin = plugin;
     }
 
+    public boolean isInitialized() {
+        return initialized && dataSource != null && !dataSource.isClosed();
+    }
+
     public void initialize() {
         if (!setupDataSource()) {
-            plugin.getLogger().severe("Could not connect to SQLite database! Disabling plugin.");
+            plugin.getLogger().severe("[PlugMan-Compatible] Could not connect to SQLite database!");
+            plugin.getLogger().severe("[PlugMan-Compatible] Plugin will be disabled. Check file permissions in Pterodactyl/Docker.");
             Bukkit.getPluginManager().disablePlugin(plugin);
+            initialized = false;
             return;
         }
+        initialized = true;
 
         // Configure SQLite PRAGMAs for containerized environments (Pterodactyl/Docker)
         try (Connection conn = getConnection(); Statement stmt = conn.createStatement()) {
@@ -86,13 +95,45 @@ public class DatabaseManager {
                     "data TEXT" +
                     ");");
 
+            // Schema Version
+            stmt.execute("CREATE TABLE IF NOT EXISTS schema_version (" +
+                    "version INTEGER PRIMARY KEY" +
+                    ");");
+
+            // Create performance indices
+            stmt.execute("CREATE INDEX IF NOT EXISTS idx_auctions_player ON auctions(player_uuid);");
+            stmt.execute("CREATE INDEX IF NOT EXISTS idx_auctions_sold ON auctions(is_sold);");
+            stmt.execute("CREATE INDEX IF NOT EXISTS idx_auctions_expired ON auctions(auction_duration);");
+            stmt.execute("CREATE INDEX IF NOT EXISTS idx_bids_auction ON bids(auction_id);");
+            stmt.execute("CREATE INDEX IF NOT EXISTS idx_bids_player ON bids(player_uuid);");
+            stmt.execute("CREATE INDEX IF NOT EXISTS idx_transactions_seller ON transactions(seller_uuid);");
+            stmt.execute("CREATE INDEX IF NOT EXISTS idx_transactions_buyer ON transactions(buyer_uuid);");
+            stmt.execute("CREATE INDEX IF NOT EXISTS idx_transactions_date ON transactions(date);");
+
         } catch (SQLException e) {
             e.printStackTrace();
             plugin.getLogger().severe("Could not initialize database tables!");
             Bukkit.getPluginManager().disablePlugin(plugin);
         }
 
+        checkSchemaVersion();
         validateSchema();
+    }
+
+    private void checkSchemaVersion() {
+        try (Connection conn = getConnection(); Statement stmt = conn.createStatement()) {
+            ResultSet rs = stmt.executeQuery("SELECT version FROM schema_version ORDER BY version DESC LIMIT 1");
+            if (rs.next()) {
+                int version = rs.getInt("version");
+                plugin.getLogger().info("Current database schema version: " + version);
+            } else {
+                // First time setup
+                stmt.execute("INSERT INTO schema_version (version) VALUES (1)");
+                plugin.getLogger().info("Initialized database schema version: 1");
+            }
+        } catch (SQLException e) {
+            plugin.getLogger().warning("Could not check schema version: " + e.getMessage());
+        }
     }
 
     private void validateSchema() {
@@ -128,8 +169,13 @@ public class DatabaseManager {
             HikariConfig config = new HikariConfig();
             config.setJdbcUrl("jdbc:sqlite:" + dbFile.getAbsolutePath());
             config.setDriverClassName("org.sqlite.JDBC");
-            config.setMaximumPoolSize(10);
-            config.setConnectionTimeout(30000); // 30 seconds
+            
+            // Read from config.yml
+            int poolSize = plugin.getConfig().getInt("database.pool-size", 10);
+            int connectionTimeout = plugin.getConfig().getInt("database.connection-timeout", 30000);
+            
+            config.setMaximumPoolSize(poolSize);
+            config.setConnectionTimeout(connectionTimeout);
 
             // Use WAL journal mode on each new connection to avoid
             // SQLITE_READONLY_DIRECTORY errors in containerized environments

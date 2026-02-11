@@ -106,6 +106,13 @@ public class GuiConfigManager {
     }
 
     /**
+     * Clear all cached GUI configurations (for PlugMan reload compatibility)
+     */
+    public static void clearCaches() {
+        guiConfigs.clear();
+    }
+
+    /**
      * Check if a GUI configuration is loaded
      * 
      * @param guiName Name of the GUI

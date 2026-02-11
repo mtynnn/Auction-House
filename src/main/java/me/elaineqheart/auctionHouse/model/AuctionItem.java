@@ -78,11 +78,23 @@ public class AuctionItem {
         this.partiallySoldAmountLeft = partiallySoldAmountLeft;
         this.adminMessage = adminMessage;
         this.buyerName = buyerName;
-        this.itemName = StringUtils.getItemName(getItem());
+        
+        // Safely get item name - handle items with missing plugin dependencies
+        try {
+            ItemStack loadedItem = getItem();
+            this.itemName = loadedItem != null ? StringUtils.getItemName(loadedItem) : "Unknown Item";
+        } catch (Exception e) {
+            this.itemName = "Corrupted Item";
+        }
     }
 
     public ItemStack getItem() {
-        return ItemStackConverter.decode(itemData);
+        try {
+            return ItemStackConverter.decode(itemData);
+        } catch (Exception e) {
+            System.err.println("[AuctionHouse] Failed to decode item for auction " + noteID + ": " + e.getMessage());
+            return null;
+        }
     }
 
     public long getTimeLeft() {
@@ -105,9 +117,10 @@ public class AuctionItem {
     }
 
     public boolean isExpired() {
-        if (auctionTime == -1)
+        long timeLeft = getTimeLeft();
+        if (timeLeft == -1)
             return false;
-        return getTimeLeft() < 0;
+        return timeLeft < 0;
     }
 
     public boolean isOnWaitingList() {

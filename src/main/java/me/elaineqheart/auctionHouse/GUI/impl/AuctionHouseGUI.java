@@ -38,6 +38,7 @@ public class AuctionHouseGUI extends InventoryGUI implements Runnable {
     }
 
     public enum Sort {
+        RECENTLY_POSTED,
         HIGHEST_PRICE,
         LOWEST_PRICE,
         ENDING_SOON,
@@ -168,6 +169,7 @@ public class AuctionHouseGUI extends InventoryGUI implements Runnable {
 
     private void fillOutItems(Sort sort, List<Integer> itemSlots) {
         switch (sort) {
+            case RECENTLY_POSTED -> createButtonsForAuctionItems(AuctionManager.SortMode.RECENTLY_POSTED, itemSlots);
             case HIGHEST_PRICE -> createButtonsForAuctionItems(AuctionManager.SortMode.PRICE_DESC, itemSlots);
             case LOWEST_PRICE -> createButtonsForAuctionItems(AuctionManager.SortMode.PRICE_ASC, itemSlots);
             case ENDING_SOON -> createButtonsForAuctionItems(AuctionManager.SortMode.DATE, itemSlots);
@@ -180,20 +182,13 @@ public class AuctionHouseGUI extends InventoryGUI implements Runnable {
         if (c.getWhitelist() != null)
             AuctionManager.getInstance().applyWhitelist(auctions, c.getWhitelist());
 
-        System.out.println("[AuctionHouse-DEBUG] createButtons: Slots=" + itemSlots.size() + ", TotalVisible="
-                + auctions.size() + ", Page=" + c.getCurrentPage());
-
         noteSize = auctions.size();
         screenSize = itemSlots.size();
         int start = c.getCurrentPage() * screenSize;
         int stop = start + screenSize;
         int end = Math.min(noteSize, stop);
 
-        System.out.println("[AuctionHouse-DEBUG] createButtons: noteSize=" + noteSize + ", screenSize=" + screenSize
-                + ", page=" + c.getCurrentPage() + ", start=" + start + ", end=" + end);
-
         if (start >= noteSize && noteSize > 0) {
-            System.out.println("[AuctionHouse-DEBUG]  - Page out of bounds, resetting to 0");
             c.setCurrentPage(0);
             start = 0;
             stop = screenSize;
@@ -363,6 +358,13 @@ public class AuctionHouseGUI extends InventoryGUI implements Runnable {
             List<String> lore = new ArrayList<>();
             lore.add(GuiConfigManager.auctionHouse().getLoreLine("filter-lore", "divider-top"));
 
+            // Recently Posted
+            if (c.getCurrentSort() == Sort.RECENTLY_POSTED) {
+                lore.add(GuiConfigManager.auctionHouse().getLoreLine("filter-lore", "recently-posted"));
+            } else {
+                lore.add(GuiConfigManager.auctionHouse().getLoreLine("filter-lore", "recently-posted-inactive"));
+            }
+
             // Highest Price
             if (c.getCurrentSort() == Sort.HIGHEST_PRICE) {
                 lore.add(GuiConfigManager.auctionHouse().getLoreLine("filter-lore", "highest-price"));
@@ -480,19 +482,21 @@ public class AuctionHouseGUI extends InventoryGUI implements Runnable {
 
     private Sort nextSort(Sort input) {
         return switch (input) {
+            case RECENTLY_POSTED -> Sort.HIGHEST_PRICE;
             case HIGHEST_PRICE -> Sort.LOWEST_PRICE;
             case LOWEST_PRICE -> Sort.ENDING_SOON;
             case ENDING_SOON -> Sort.ALPHABETICAL;
-            case ALPHABETICAL -> Sort.HIGHEST_PRICE;
+            case ALPHABETICAL -> Sort.RECENTLY_POSTED;
         };
     }
 
     private Sort previousSort(Sort input) {
         return switch (input) {
+            case RECENTLY_POSTED -> Sort.ALPHABETICAL;
             case ALPHABETICAL -> Sort.ENDING_SOON;
             case ENDING_SOON -> Sort.LOWEST_PRICE;
             case LOWEST_PRICE -> Sort.HIGHEST_PRICE;
-            case HIGHEST_PRICE -> Sort.ALPHABETICAL;
+            case HIGHEST_PRICE -> Sort.RECENTLY_POSTED;
         };
     }
 

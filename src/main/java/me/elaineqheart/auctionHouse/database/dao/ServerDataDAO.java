@@ -18,23 +18,27 @@ import java.util.UUID;
 
 public class ServerDataDAO {
 
-    private final Gson gson = new com.google.gson.GsonBuilder()
-            .registerTypeAdapter(java.util.Optional.class, new com.google.gson.TypeAdapter<java.util.Optional<?>>() {
-                @Override
-                public void write(com.google.gson.stream.JsonWriter out, java.util.Optional<?> value)
-                        throws java.io.IOException {
-                    if (value == null || !value.isPresent()) {
-                        out.nullValue();
-                    } else {
-                        new Gson().toJson(value.get(), value.get().getClass(), out);
-                    }
-                }
+    private static class OptionalAdapter<T> extends com.google.gson.TypeAdapter<java.util.Optional<T>> {
+        private final Gson gson = new Gson();
 
-                @Override
-                public java.util.Optional<?> read(com.google.gson.stream.JsonReader in) throws java.io.IOException {
-                    return java.util.Optional.ofNullable(new Gson().fromJson(in, Object.class));
-                }
-            })
+        @Override
+        public void write(com.google.gson.stream.JsonWriter out, java.util.Optional<T> value)
+                throws java.io.IOException {
+            if (value == null || !value.isPresent()) {
+                out.nullValue();
+            } else {
+                gson.toJson(value.get(), value.get().getClass(), out);
+            }
+        }
+
+        @Override
+        public java.util.Optional<T> read(com.google.gson.stream.JsonReader in) throws java.io.IOException {
+            return java.util.Optional.ofNullable(gson.fromJson(in, Object.class));
+        }
+    }
+
+    private final Gson gson = new com.google.gson.GsonBuilder()
+            .registerTypeAdapter(java.util.Optional.class, new OptionalAdapter<>())
             .create();
 
     /**

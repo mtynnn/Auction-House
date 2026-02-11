@@ -8,10 +8,32 @@ import java.sql.Connection;
 import java.sql.PreparedStatement;
 import java.sql.ResultSet;
 import java.sql.SQLException;
+import java.util.ArrayList;
+import java.util.List;
 import java.util.UUID;
 import java.util.concurrent.CompletableFuture;
 
 public class TransactionDAO {
+
+    public static class Transaction {
+        public final UUID sellerUUID;
+        public final UUID buyerUUID;
+        public final String itemName;
+        public final double price;
+        public final long date;
+        public final String type;
+        public final boolean isSeller;
+
+        public Transaction(UUID sellerUUID, UUID buyerUUID, String itemName, double price, long date, String type, boolean isSeller) {
+            this.sellerUUID = sellerUUID;
+            this.buyerUUID = buyerUUID;
+            this.itemName = itemName;
+            this.price = price;
+            this.date = date;
+            this.type = type;
+            this.isSeller = isSeller;
+        }
+    }
 
     /**
      * Resolves DatabaseManager lazily to avoid NPE when constructed before DB init.
@@ -90,6 +112,52 @@ public class TransactionDAO {
                 e.printStackTrace();
                 future.complete(new double[] { -1, 0 });
             }
+        });
+        return future;
+    }
+
+    /**
+     * Get recent transactions for a player (as seller or buyer)
+     * @param playerUUID UUID of the player
+     * @param limit Maximum number of transactions to return
+     * @return CompletableFuture with list of transactions
+     */
+    public CompletableFuture<List<Transaction>> getRecentTransactions(UUID playerUUID, int limit) {
+        CompletableFuture<List<Transaction>> future = new CompletableFuture<>();
+        Bukkit.getScheduler().runTaskAsynchronously(AuctionHouse.getPlugin(), () -> {
+            DatabaseManager db = getDbManager();
+            if (db == null) {
+                future.complete(new ArrayList<>());
+                return;
+            }
+            List<Transaction> transactions = new ArrayList<>();
+            String sql = "SELECT seller_uuid, buyer_uuid, item_name, price, date, type " +
+                         "FROM transactions " +
+                         "WHERE seller_uuid = ? OR buyer_uuid = ? " +
+                         "ORDER BY date DESC " +
+                         "LIMIT ?";
+            try (Connection conn = db.getConnection(); PreparedStatement stmt = conn.prepareStatement(sql)) {
+                stmt.setString(1, playerUUID.toString());
+                stmt.setString(2, playerUUID.toString());
+                stmt.setInt(3, limit);
+                try (ResultSet rs = stmt.executeQuery()) {
+                    while (rs.next()) {
+                        String sellerStr = rs.getString("seller_uuid");
+                        String buyerStr = rs.getString("buyer_uuid");
+                        UUID seller = sellerStr != null ? UUID.fromString(sellerStr) : null;
+                        UUID buyer = buyerStr != null ? UUID.fromString(buyerStr) : null;
+                        String itemName = rs.getString("item_name");
+                        double price = rs.getDouble("price");
+                        long date = rs.getLong("date");
+                        String type = rs.getString("type");
+                        boolean isSeller = playerUUID.equals(seller);
+                        transactions.add(new Transaction(seller, buyer, itemName, price, date, type, isSeller));
+                    }
+                }
+            } catch (SQLException e) {
+                e.printStackTrace();
+            }
+            future.complete(transactions);
         });
         return future;
     }

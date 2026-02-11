@@ -14,6 +14,7 @@ import me.elaineqheart.auctionHouse.configuration.ConfigManager;
 import me.elaineqheart.auctionHouse.model.UserSession;
 import me.elaineqheart.auctionHouse.manager.ItemManager;
 import me.elaineqheart.auctionHouse.model.AuctionItem;
+import me.elaineqheart.auctionHouse.util.StringUtils;
 import me.elaineqheart.auctionHouse.vault.VaultHook;
 import net.md_5.bungee.api.chat.ClickEvent;
 import net.md_5.bungee.api.chat.TextComponent;
@@ -138,14 +139,14 @@ public class ConfirmBuyGUI extends InventoryGUI {
                     }
                     AuctionManager.getInstance().updateAuction(note);
                     p.sendMessage(M.getFormatted("chat.purchase-auction",
-                            "%player%", note.getPlayerName(),
+                            "%player%", StringUtils.escapeMiniMessage(note.getPlayerName()),
                             "%item%", note.getItemName()));
                     Player seller = Bukkit.getPlayer(note.getPlayerUUID());
                     if (SettingManager.soldMessageEnabled && seller != null
                             && seller.isOnline()) {
                         if (SettingManager.autoCollect) {
                             seller.sendMessage(M.getFormatted("chat.sold-message.auto-collect", price,
-                                    "%player%", p.getDisplayName(),
+                                    "%player%", StringUtils.escapeMiniMessage(p.getDisplayName()),
                                     "%item%", itemName,
                                     "%amount%", String.valueOf(item.getAmount())));
                         } else {

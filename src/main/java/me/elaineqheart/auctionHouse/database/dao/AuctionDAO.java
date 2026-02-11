@@ -8,6 +8,7 @@ import me.elaineqheart.auctionHouse.manager.AuctionManager;
 import me.elaineqheart.auctionHouse.model.AuctionItem;
 import me.elaineqheart.auctionHouse.util.ItemStackConverter;
 import org.bukkit.Bukkit;
+import org.bukkit.inventory.ItemStack;
 
 import java.io.File;
 import java.sql.Connection;
@@ -26,7 +27,6 @@ public class AuctionDAO {
     }
 
     public void loadAll() {
-        System.out.println("[AuctionHouse-DEBUG] AuctionDAO.loadAll() starting...");
         // Migration Check
         backwardsCompatibility();
         File jsonFile = new File(AuctionHouse.getPlugin().getDataFolder(), "data/notes.json");
@@ -115,6 +115,9 @@ public class AuctionDAO {
         AuctionManager.getInstance().clear();
         String query = "SELECT * FROM auctions";
         int count = 0;
+        int skippedCorrupted = 0;
+        boolean logCorrupted = AuctionHouse.getPlugin().getConfig().getBoolean("debug.log-corrupted-items", false);
+        
         try (Connection conn = dbManager.getConnection();
                 PreparedStatement stmt = conn.prepareStatement(query);
                 ResultSet rs = stmt.executeQuery()) {
@@ -143,6 +146,17 @@ public class AuctionDAO {
                             auctionDuration,
                             isBin, isSold, partiallySold, adminMessage, buyerName);
 
+                    // Verify the item can be loaded before adding to manager
+                    ItemStack testLoad = note.getItem();
+                    if (testLoad == null) {
+                        skippedCorrupted++;
+                        if (logCorrupted) {
+                            AuctionHouse.getPlugin().getLogger().warning(
+                                "Skipped corrupted auction ID: " + id + " (item deserialization failed, possibly missing plugin)");
+                        }
+                        continue; // Skip corrupted items
+                    }
+
                     loadBidsForNote(note, conn);
                     AuctionManager.getInstance().addQuietly(note);
 
@@ -154,23 +168,37 @@ public class AuctionDAO {
                         expired++;
                     else
                         active++;
+                } catch (IllegalArgumentException e) {
+                    // UUID parsing error
+                    skippedCorrupted++;
+                    if (logCorrupted) {
+                        AuctionHouse.getPlugin().getLogger().warning("Invalid UUID in auction record: " + e.getMessage());
+                    }
                 } catch (Exception e) {
-                    System.err.println(
-                            "[AuctionHouse-DEBUG] Failed to load auction ID: " + id + " due to " + e.getMessage());
-                    // Corrupted item or missing dependency (like nova_structures), skipping to
-                    // allow others to load
+                    // Other errors (corrupted item, missing dependency, or SQL error)
+                    skippedCorrupted++;
+                    if (logCorrupted) {
+                        AuctionHouse.getPlugin().getLogger().warning(
+                            "Failed to load auction: " + e.getClass().getSimpleName() + " - " + e.getMessage());
+                    }
                 }
                 count++;
             }
             AuctionManager.getInstance().finalizeLoad();
-            System.out.println("[AuctionHouse-DEBUG] Loaded " + count + " auctions. Breakdown:");
-            System.out.println("[AuctionHouse-DEBUG]  - Active: " + active);
-            System.out.println("[AuctionHouse-DEBUG]  - Expired: " + expired);
-            System.out.println("[AuctionHouse-DEBUG]  - Sold: " + sold);
-            System.out.println("[AuctionHouse-DEBUG]  - Admin Hidden: " + adminHidden);
+            String summary = String.format("Loaded %d auctions (Active: %d, Expired: %d, Sold: %d, Hidden: %d)", 
+                count, active, expired, sold, adminHidden);
+            if (skippedCorrupted > 0) {
+                summary += String.format(" - Skipped %d corrupted items", skippedCorrupted);
+                AuctionHouse.getPlugin().getLogger().warning(summary);
+            } else {
+                AuctionHouse.getPlugin().getLogger().info(summary);
+            }
 
         } catch (SQLException e) {
-            System.err.println("[AuctionHouse-DEBUG] Failed to load auctions from database: " + e.getMessage());
+            AuctionHouse.getPlugin().getLogger().severe("SQL error loading auctions from database: " + e.getMessage());
+            e.printStackTrace();
+        } catch (Exception e) {
+            AuctionHouse.getPlugin().getLogger().severe("Unexpected error loading auctions: " + e.getMessage());
             e.printStackTrace();
         }
     }

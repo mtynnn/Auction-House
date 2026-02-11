@@ -3,7 +3,7 @@
 # ══════════════════════════════════════════════════════════════════════════════
 
 # General
-tax: 0.01
+# tax: REMOVED - Now shows transaction history in My Auctions GUI
 default-max-auctions: 3
 admin-permission: "auctionhouse.admin"
 
@@ -48,6 +48,16 @@ expired-item-retention-days: 7
 
 # Display
 display-update: 20                      # ticks (20 = 1s)
+
+# Database
+database:
+  pool-size: 10                         # HikariCP connection pool size
+  connection-timeout: 30000             # milliseconds (30s)
+
+# Debug
+debug:
+  log-corrupted-items: false            # Log items that fail to load
+  max-stack-size: 576                   # Max items in one auction (9 inv * 64)
 
 # Format
 format-money:

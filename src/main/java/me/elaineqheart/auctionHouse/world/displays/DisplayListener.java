@@ -79,7 +79,7 @@ public class DisplayListener implements Listener {
             AuctionItem note = UpdateDisplay.getNote(type, rank);
             if (note != null) {
                 p.playSound(p, Sound.UI_STONECUTTER_SELECT_RECIPE, 0.2f, 1);
-                UserSession configuration = new UserSession(0, AuctionHouseGUI.Sort.HIGHEST_PRICE, "", p, false);
+                UserSession configuration = new UserSession(0, AuctionHouseGUI.Sort.RECENTLY_POSTED, "", p, false);
                 AuctionHouse.getGuiManager()
                         .openGUI(new AuctionViewGUI(note, configuration, 0, UserSession.View.AUCTION_HOUSE), p);
             }

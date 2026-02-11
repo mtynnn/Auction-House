@@ -28,6 +28,10 @@ public class TaskManager {
         taskID.clear();
     }
 
+    public static int getTaskCount() {
+        return taskID.size();
+    }
+
     // *usage in another class:
 
     // TaskManager.addTaskID(uuid,Bukkit.getScheduler().runTaskTimer(AuctionHouse.getPlugin(),

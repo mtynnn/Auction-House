@@ -94,7 +94,7 @@ public class SettingManager {
         FileConfiguration c = AuctionHouse.getPlugin().getConfig();
 
         // General settings
-        taxRate = c.getDouble("tax", 0.01);
+        taxRate = 0.0; // Tax system removed, replaced with transaction history
         auctionSetupTime = c.getLong("auction-setup-time", 30);
         defaultMaxAuctions = c.getInt("default-max-auctions", 10);
         permissionModerate = c.getString("admin-permission", "auctionhouse.admin");

@@ -65,6 +65,7 @@ command-feedback:
   min-bin: "%prefix%<red>El precio mínimo para venta directa es <color:#FFD180>%price%<red>."
   min-bid: "%prefix%<red>El precio mínimo para puja es <color:#FFD180>%price%<red>."
   max-price: "%prefix%<red>¡ᴇʟ ᴘʀᴇᴄɪᴏ ᴇs ᴅᴇᴍᴀsɪᴀᴅᴏ ᴀʟᴛᴏ! ᴇʟ ᴍáxɪᴍᴏ ᴘᴇʀᴍɪᴛɪᴅᴏ ᴇs <white>%number%<red>."
+  too-many-items: "%prefix%<red>No puedes vender más de <color:#FFD180>%max%<red> ítems a la vez."
   item-blacklisted: "%prefix%<red>Este ítem no puede ser subastado."
   price-too-high: "%prefix%<red>Precio excesivo. <gray>Promedio: <color:#FFD180>$%avg% <gray>| Máximo permitido: <color:#FFD180>$%max%"
   auction: "%prefix%<gray>¡Ítem subastado exitosamente por <color:#FFD180>%price%<gray>!"
@@ -123,13 +124,13 @@ chat:
     interaction: "<yellow>[Clic para pujar de nuevo]"
 
 world:
-  npc: "<dark_gray>[<color:#FFD180>sᴜʙᴀsᴛᴀs</color><dark_gray>]"
+  npc: "<dark_gray>[<gold>sᴜʙᴀsᴛᴀs</gold><dark_gray>]"
   displays:
-    line-0: "<color:#FFD180>%price%"
+    line-0: "<gold>%price%"
     line-1: "<gray>Expira en:"
-    line-2: "<color:#FFD180>%time%"
+    line-2: "<gold>%time%"
     line-3: " "
-    by-player: "<gray>por <color:#FFD180>%player%"
+    by-player: "<gray>por <gold>%player%"
 
 
 money-formatter:

@@ -11,7 +11,7 @@ items:
   next-page-disabled: '<gray>sɪɢᴜɪᴇɴᴛᴇ'
   refresh: '<color:#FFD180>ʀᴇᴄᴀʀɢᴀʀ'
   info: '<color:#FFD180>ɪɴғᴏ'
-  locked-slot: ' '
+  locked-slot: '<red>sʟᴏᴛ ʙʟᴏǫᴜᴇᴀᴅᴏ'
 
 lore:
   back-lore:
@@ -37,11 +37,19 @@ lore:
     - '<color:#FFD180>▶ Clic para recargar'
 
   info-lore:
-    - '<gray>Información sobre tus subastas'
+    - '<color:#FFD180>Historial de Transacciones'
     - ''
-    - '<gray>Impuesto actual: <color:#FFD180>{tax}%'
+    - '<gray>Las transacciones se cargan dinámicamente'
+    - '<gray>mostrando compras y ventas recientes'
     - ''
     - '<dark_gray>Plugin por ElaineQheart'
+
+  locked-slot-lore:
+    - ''
+    - '<gray>Necesitas más permisos para'
+    - '<gray>usar este slot de subasta'
+    - ''
+    - '<red>✖ Bloqueado'
 
   item-sold-lore:
     - ''

@@ -198,6 +198,23 @@ public class UpdateDisplay implements Runnable {
         }
     }
 
+    /**
+     * Clear all display caches (for PlugMan reload compatibility)
+     */
+    public static void clearAll() {
+        // Remove all item entities and text displays
+        for (DisplayNote data : displays.values()) {
+            if (data.itemEntity != null && !data.itemEntity.isDead()) {
+                data.itemEntity.remove();
+            }
+            if (data.text != null && !data.text.isDead()) {
+                data.text.remove();
+            }
+        }
+        displays.clear();
+        locations.clear();
+    }
+
     private static void retrieveData(Location loc, DisplayNote data) {
         BlockDisplay entity = null;
         Item itemEntity = null;

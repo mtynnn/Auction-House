@@ -101,15 +101,24 @@ public class AuctionHouseCommand implements CommandExecutor, TabCompleter {
                     p.sendMessage(M.getFormatted("command-feedback.no-item-in-hand"));
                     return true;
                 }
-                double price = StringUtils.parsePositiveNumber(strings[1]);
-                if (price == -1) {
+                
+                // Parse price with better error handling
+                double price;
+                try {
+                    price = Double.parseDouble(strings[1]);
+                    if (price <= 0) {
+                        p.sendMessage(M.getFormatted("command-feedback.invalid-number2"));
+                        return true;
+                    }
+                    if (Double.isNaN(price) || Double.isInfinite(price)) {
+                        p.sendMessage(M.getFormatted("command-feedback.invalid-number"));
+                        return true;
+                    }
+                } catch (NumberFormatException e) {
                     p.sendMessage(M.getFormatted("command-feedback.invalid-number"));
                     return true;
                 }
-                if (price == 0) {
-                    p.sendMessage(M.getFormatted("command-feedback.invalid-number2"));
-                    return true;
-                }
+                
                 if (price > SettingManager.maxPrice) {
                     p.sendMessage(M.getFormatted("command-feedback.max-price", SettingManager.maxPrice));
                     return true;
@@ -126,60 +135,76 @@ public class AuctionHouseCommand implements CommandExecutor, TabCompleter {
                 if (strings.length == 3) {
                     try {
                         amount = Integer.parseInt(strings[2]);
-                        if (amount < 1 || amount > item.getAmount())
-                            throw new RuntimeException();
-                    } catch (Exception e) {
+                        if (amount < 1 || amount > item.getAmount()) {
+                            p.sendMessage(M.getFormatted("command-feedback.invalid-number7"));
+                            return true;
+                        }
+                    } catch (NumberFormatException e) {
                         p.sendMessage(M.getFormatted("command-feedback.invalid-number7"));
                         return true;
                     }
                 }
+                
+                // Validate max stack size to prevent GUI overflow
+                int maxStackSize = AuctionHouse.getPlugin().getConfig().getInt("debug.max-stack-size", 576); // 9 inv * 64
+                if (amount > maxStackSize) {
+                    p.sendMessage(M.getFormatted("command-feedback.too-many-items", "%max%", String.valueOf(maxStackSize)));
+                    return true;
+                }
+                
                 if (Blacklist.isBlacklisted(item)) {
                     p.sendMessage(M.getFormatted("command-feedback.item-blacklisted"));
                     p.playSound(p, Sound.ENTITY_ENDERMAN_TELEPORT, 0.7f, 0.1f);
                     return true;
                 }
 
-                // Price Protection: check against average historical price
-                if (SettingManager.priceProtectionEnabled) {
-                    try {
-                        double[] result = ConfigManager.transactionLogger.getDao()
-                                .getAveragePricePerUnit(item.getType().name(), SettingManager.priceProtectionMinSales)
-                                .get(2, java.util.concurrent.TimeUnit.SECONDS);
-                        double avgPPU = result[0];
-                        if (avgPPU > 0) {
-                            double maxAllowed = avgPPU * amount * SettingManager.priceProtectionMultiplier;
-                            if (price > maxAllowed) {
-                                String avgFormatted = SettingManager.formatter.format(avgPPU * amount);
-                                String maxFormatted = SettingManager.formatter.format(maxAllowed);
-                                p.sendMessage(M.getFormatted("command-feedback.price-too-high",
-                                        "%avg%", avgFormatted,
-                                        "%max%", maxFormatted));
-                                return true;
-                            }
-                        }
-                    } catch (Exception e) {
-                        // Timeout or error — let the auction through, don't block players
-                    }
-                }
+                // Create auction first for immediate feedback
                 ItemStack inputItem = item.clone();
                 inputItem.setAmount(amount);
-                AuctionManager.getInstance().createAuction(p, inputItem, price,
-                        strings[0].equals(M.getFormatted("command-names.bid")));
                 item.setAmount(item.getAmount() - amount);
-                p.sendMessage(M.getFormatted("command-feedback.auction", price));
+                
+                final double finalPrice = price;
+                final int finalAmount = amount;
+                
+                // Price Protection: check against average historical price (async to avoid blocking)
+                if (SettingManager.priceProtectionEnabled) {
+                    Bukkit.getScheduler().runTaskAsynchronously(AuctionHouse.getPlugin(), () -> {
+                        try {
+                            double[] result = ConfigManager.transactionLogger.getDao()
+                                    .getAveragePricePerUnit(item.getType().name(), SettingManager.priceProtectionMinSales)
+                                    .get(500, java.util.concurrent.TimeUnit.MILLISECONDS);
+                            double avgPPU = result[0];
+                            if (avgPPU > 0) {
+                                double maxAllowed = avgPPU * finalAmount * SettingManager.priceProtectionMultiplier;
+                                if (finalPrice > maxAllowed) {
+                                    String avgFormatted = SettingManager.formatter.format(avgPPU * finalAmount);
+                                    String maxFormatted = SettingManager.formatter.format(maxAllowed);
+                                    p.sendMessage(M.getFormatted("command-feedback.price-warning",
+                                            "%avg%", avgFormatted,
+                                            "%max%", maxFormatted));
+                                }
+                            }
+                        } catch (Exception e) {
+                            // Timeout or error — don't notify, just let it go
+                        }
+                    });
+                }
+                
+                AuctionManager.getInstance().createAuction(p, inputItem, finalPrice,
+                        strings[0].equals(M.getFormatted("command-names.bid")));
+                M.sendMessage(p, "command-feedback.auction", finalPrice);
 
                 // Announce the new auction to all players who have announcements enabled
                 if (SettingManager.auctionAnnouncementsEnabled) {
                     String itemName = StringUtils.getItemName(inputItem);
-                    String announcement = M.getFormatted("chat.auction-announcement", price,
-                            "%player%", p.getDisplayName(),
-                            "%item%", itemName,
-                            "%amount%", String.valueOf(amount));
                     Bukkit.getScheduler().runTaskLater(AuctionHouse.getPlugin(), () -> {
                         for (Player onlinePlayer : Bukkit.getOnlinePlayers()) {
                             if (ConfigManager.playerPreferences.hasAnnouncementsEnabled(onlinePlayer.getUniqueId())
                                     && !onlinePlayer.equals(p)) {
-                                onlinePlayer.sendMessage(announcement);
+                                M.sendMessage(onlinePlayer, "chat.auction-announcement", finalPrice,
+                                        "%player%", StringUtils.escapeMiniMessage(p.getDisplayName()),
+                                        "%item%", itemName,
+                                        "%amount%", String.valueOf(finalAmount));
                             }
                         }
                     }, SettingManager.auctionSetupTime * 20);
@@ -220,8 +245,54 @@ public class AuctionHouseCommand implements CommandExecutor, TabCompleter {
             if (p.hasPermission(SettingManager.permissionModerate) && strings.length > 0) {
                 if (strings.length == 1 && strings[0].equals(M.getFormatted("command-names.admin"))) {
                     AuctionHouse.getGuiManager()
-                            .openGUI(new AuctionHouseGUI(0, AuctionHouseGUI.Sort.HIGHEST_PRICE, "", p, true), p);
-                } else if (strings.length < 4 && strings[0].equals(M.getFormatted("command-names.ban"))) {
+                            .openGUI(new AuctionHouseGUI(0, AuctionHouseGUI.Sort.RECENTLY_POSTED, "", p, true), p);
+                } 
+                // /ah debug - Show system diagnostics
+                else if (strings.length == 1 && strings[0].equals("debug")) {
+                    p.sendMessage("§6§l[AuctionHouse Debug Info]§r");
+                    p.sendMessage("§7Version: §f" + AuctionHouse.getPlugin().getDescription().getVersion());
+                    p.sendMessage("");
+                    
+                    // Auction stats
+                    AuctionManager am = AuctionManager.getInstance();
+                    p.sendMessage("§e§lAuctions:§r");
+                    p.sendMessage("  §7Loaded: §f" + am.isLoaded());
+                    p.sendMessage("  §7Total: §f" + am.getAll().size());
+                    p.sendMessage("  §7Active: §f" + am.getAll().stream().filter(a -> a.isOnAuction() && !a.isExpired()).count());
+                    p.sendMessage("  §7Expired: §f" + am.getAll().stream().filter(AuctionItem::isExpired).count());
+                    p.sendMessage("  §7Sold: §f" + am.getAll().stream().filter(AuctionItem::isSold).count());
+                    p.sendMessage("");
+                    
+                    // Database stats
+                    if (AuctionHouse.getPlugin().getDatabaseManager().isInitialized()) {
+                        p.sendMessage("§e§lDatabase:§r");
+                        p.sendMessage("  §7Type: §fSQLite");
+                        p.sendMessage("  §7Pool Size: §f" + AuctionHouse.getPlugin().getConfig().getInt("database.pool-size", 10));
+                        p.sendMessage("  §7Status: §a✓ Connected§r");
+                    } else {
+                        p.sendMessage("§e§lDatabase:§r");
+                        p.sendMessage("  §cNot initialized");
+                    }
+                    p.sendMessage("");
+                    
+                    // Config settings
+                    p.sendMessage("§e§lConfig:§r");
+                    p.sendMessage("  §7Debug Logging: §f" + AuctionHouse.getPlugin().getConfig().getBoolean("debug.log-corrupted-items", false));
+                    p.sendMessage("  §7Max Stack: §f" + AuctionHouse.getPlugin().getConfig().getInt("debug.max-stack-size", 576));
+                    p.sendMessage("  §7Price Protection: §f" + SettingManager.priceProtectionEnabled);
+                    p.sendMessage("");
+                    
+                    // Performance
+                    p.sendMessage("§e§lPerformance:§r");
+                    long totalMemory = Runtime.getRuntime().totalMemory() / 1024 / 1024;
+                    long freeMemory = Runtime.getRuntime().freeMemory() / 1024 / 1024;
+                    long usedMemory = totalMemory - freeMemory;
+                    p.sendMessage("  §7Memory: §f" + usedMemory + "MB / " + totalMemory + "MB");
+                    p.sendMessage("  §7Active Sessions: §f" + UserSession.getActiveSessions());
+                    
+                    return true;
+                }
+                else if (strings.length < 4 && strings[0].equals(M.getFormatted("command-names.ban"))) {
                     p.sendMessage(M.getFormatted("command-feedback.ban-usage"));
                 } else if (strings.length != 2 && strings[0].equals(M.getFormatted("command-names.pardon"))) {
                     p.sendMessage(M.getFormatted("command-feedback.pardon-usage"));
@@ -248,7 +319,7 @@ public class AuctionHouseCommand implements CommandExecutor, TabCompleter {
                         }
                         ConfigManager.bannedPlayers.saveBannedPlayer(targetPlayer, duration, reason.toString());
                         p.sendMessage(M.getFormatted("command-feedback.ban",
-                                "%player%", targetPlayer.getDisplayName(),
+                                "%player%", StringUtils.escapeMiniMessage(targetPlayer.getDisplayName()),
                                 "%duration%", String.valueOf(duration),
                                 "%reason%", reason.toString()));
                     } catch (Exception e) {
@@ -444,6 +515,7 @@ public class AuctionHouseCommand implements CommandExecutor, TabCompleter {
                 assetParams.add(M.getFormatted("command-names.reload"));
                 assetParams.add(M.getFormatted("command-names.summon"));
                 assetParams.add(M.getFormatted("command-names.blacklist"));
+                assetParams.add("debug");
             }
             for (String p : assetParams) {
                 if (p.indexOf(strings[0]) == 0) {
@@ -529,8 +601,8 @@ public class AuctionHouseCommand implements CommandExecutor, TabCompleter {
         ConfigManager.reloadConfigs();
         SlotConfigManager.reload();
         GuiConfigManager.loadAll();
-        AuctionManager.getInstance().loadAuctions();
         SettingManager.loadData();
+        AuctionManager.getInstance().loadAuctions();
         UpdateDisplay.reload();
     }
 

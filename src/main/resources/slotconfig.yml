@@ -64,6 +64,7 @@ MyAuctionsGUI:
     next-page: ARROW
     collect-all: GOLDEN_CARROT
     info: PAPER
+    locked-slot: RED_STAINED_GLASS_PANE
     filler: AIR
 
 # ═══════════════════════════════════════════

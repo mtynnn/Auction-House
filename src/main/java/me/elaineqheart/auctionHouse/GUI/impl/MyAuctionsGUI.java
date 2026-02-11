@@ -12,8 +12,10 @@ import me.elaineqheart.auctionHouse.configuration.M;
 import me.elaineqheart.auctionHouse.configuration.SettingManager;
 import me.elaineqheart.auctionHouse.configuration.SlotConfigManager;
 import me.elaineqheart.auctionHouse.configuration.ConfigManager;
+import me.elaineqheart.auctionHouse.database.dao.TransactionDAO;
 import me.elaineqheart.auctionHouse.model.*;
 import me.elaineqheart.auctionHouse.manager.ItemManager;
+import me.elaineqheart.auctionHouse.util.StringUtils;
 import org.bukkit.Bukkit;
 import org.bukkit.entity.Player;
 import org.bukkit.event.inventory.InventoryCloseEvent;
@@ -198,7 +200,7 @@ public class MyAuctionsGUI extends InventoryGUI implements Runnable {
     }
 
     private InventoryButton auctionItem(AuctionItem note) {
-        ItemStack item = ItemManager.createItemFromNote(note, c.getPlayer(), true, false);
+        ItemStack item = ItemManager.createMyAuctionItem(note, c.getPlayer());
         return new InventoryButton()
                 .creator(player -> item)
                 .consumer(event -> {
@@ -265,16 +267,17 @@ public class MyAuctionsGUI extends InventoryGUI implements Runnable {
     }
 
     private InventoryButton barrier() {
-        ItemStack barrier = new ItemStack(SlotConfigManager.getMaterial("AuctionHouseGUI", "filler"));
+        ItemStack barrier = new ItemStack(SlotConfigManager.getMaterial(GUI_NAME, "locked-slot"));
         ItemMeta meta = barrier.getItemMeta();
         if (meta != null) {
             meta.setItemName(GuiConfigManager.myAuctions().getItemName("locked-slot"));
-            meta.setLore(GuiConfigManager.myAuctions().getLore("locked-slot-lore")); // Assuming lore exists or empty
+            meta.setLore(GuiConfigManager.myAuctions().getLore("locked-slot-lore"));
             barrier.setItemMeta(meta);
         }
         return new InventoryButton()
                 .creator(player -> barrier)
                 .consumer(event -> {
+                    Sounds.villagerDeny(event);
                 });
     }
 
@@ -372,9 +375,49 @@ public class MyAuctionsGUI extends InventoryGUI implements Runnable {
         ItemMeta meta = item.getItemMeta();
         if (meta != null) {
             meta.setItemName(GuiConfigManager.myAuctions().getItemName("info"));
-            meta.setLore(GuiConfigManager.myAuctions().getLore("info-lore", "{tax}",
-                    String.valueOf(SettingManager.taxRate * 100)));
+            
+            // Load transaction history asynchronously
+            List<String> lore = new ArrayList<>();
+            lore.add(StringUtils.colorize("<gray>Cargando historial..."));
+            meta.setLore(lore);
             item.setItemMeta(meta);
+            
+            // Load transactions asynchronously and update item
+            TransactionDAO dao = new TransactionDAO();
+            dao.getRecentTransactions(c.getPlayer().getUniqueId(), 10).thenAccept(transactions -> {
+                Bukkit.getScheduler().runTask(AuctionHouse.getPlugin(), () -> {
+                    List<String> historyLore = new ArrayList<>();
+                    historyLore.add(StringUtils.colorize("<color:#FFD180>Historial de Transacciones"));
+                    historyLore.add("");
+                    
+                    if (transactions.isEmpty()) {
+                        historyLore.add(StringUtils.colorize("<gray>No hay transacciones recientes"));
+                    } else {
+                        for (TransactionDAO.Transaction tx : transactions) {
+                            long timePassed = System.currentTimeMillis() - tx.date;
+                            String timeAgo = StringUtils.getTime(timePassed, false);
+                            String priceStr = StringUtils.formatPrice(tx.price);
+                            
+                            // Format: + 2,200, 20 Horas atras por Venta de items
+                            String sign = tx.isSeller ? "+" : "-";
+                            String action = tx.isSeller ? "Venta" : "Compra";
+                            String colorCode = tx.isSeller ? "<green>" : "<red>";
+                            
+                            historyLore.add(StringUtils.colorize(colorCode + sign + " " + priceStr + "<gray>, " + 
+                                          timeAgo + " <gray>por " + action));
+                        }
+                    }
+                    
+                    historyLore.add("");
+                    historyLore.add(StringUtils.colorize("<dark_gray>Plugin por ElaineQheart"));
+                    
+                    ItemMeta updatedMeta = item.getItemMeta();
+                    if (updatedMeta != null) {
+                        updatedMeta.setLore(historyLore);
+                        item.setItemMeta(updatedMeta);
+                    }
+                });
+            });
         }
         return new InventoryButton()
                 .creator(player -> item)

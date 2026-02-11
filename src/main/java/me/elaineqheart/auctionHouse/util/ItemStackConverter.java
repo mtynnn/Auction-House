@@ -39,7 +39,9 @@ public class ItemStackConverter {
             BukkitObjectInputStream dataInput = new BukkitObjectInputStream(inputStream);
             return (ItemStack) dataInput.readObject();
         } catch (Exception ex) {
-            throw new RuntimeException(ex);
+            // Log warning but don't crash - item may have custom enchants from missing plugins
+            System.err.println("[AuctionHouse] Failed to deserialize item: " + ex.getMessage());
+            return null;
         }
         // try {
         // Gson gson = new Gson();

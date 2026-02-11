@@ -56,11 +56,15 @@ public class SlotConfigManager {
     }
 
     public static void reload() {
+        clearCaches();
+        load();
+    }
+
+    public static void clearCaches() {
         slotsCache.clear();
         materialsCache.clear();
         itemSlotsCache.clear();
         sizesCache.clear();
-        load();
     }
 
     private static void buildCaches() {

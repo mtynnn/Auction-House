@@ -8,6 +8,7 @@ import me.elaineqheart.auctionHouse.database.dao.AuctionDAO;
 import me.elaineqheart.auctionHouse.model.AuctionItem;
 import me.elaineqheart.auctionHouse.model.UserSession;
 import org.bukkit.Bukkit;
+import org.bukkit.ChatColor;
 import org.bukkit.OfflinePlayer;
 import org.bukkit.entity.Player;
 import org.bukkit.inventory.ItemStack;
@@ -16,39 +17,45 @@ import me.elaineqheart.auctionHouse.vault.VaultHook;
 import net.milkbowl.vault.economy.Economy;
 
 import java.util.*;
+import java.util.concurrent.ConcurrentHashMap;
 import java.util.stream.Collectors;
 
 public class AuctionManager {
 
-    private static AuctionManager instance;
+    private static final AuctionManager instance = new AuctionManager();
     private final AuctionDAO dao;
+    private volatile boolean loaded = false;
 
-    // RAM Cache (formerly AuctionHouseStorage)
-    private final ArrayList<UUID> itemNotes = new ArrayList<>();
-    private final ArrayList<UUID> sortedHighestPrice = new ArrayList<>();
-    private final ArrayList<UUID> sortedTimeLeft = new ArrayList<>();
-    private final ArrayList<UUID> sortedAlphabetical = new ArrayList<>();
-    private final HashMap<UUID, List<UUID>> sortedBids = new HashMap<>(); // player : itemNotes
-    private final HashMap<UUID, List<UUID>> sortedPlayers = new HashMap<>(); // itemNote : players
-    private final HashMap<UUID, AuctionItem> notes = new HashMap<>();
-    private final HashMap<List<Map<String, Object>>, List<UUID>> categories = new HashMap<>();
+    // RAM Cache (formerly AuctionHouseStorage) - Thread-safe collections
+    private final List<UUID> itemNotes = Collections.synchronizedList(new ArrayList<>());
+    private final List<UUID> sortedHighestPrice = Collections.synchronizedList(new ArrayList<>());
+    private final List<UUID> sortedTimeLeft = Collections.synchronizedList(new ArrayList<>());
+    private final List<UUID> sortedAlphabetical = Collections.synchronizedList(new ArrayList<>());
+    private final List<UUID> sortedRecentlyPosted = Collections.synchronizedList(new ArrayList<>());
+    private final Map<UUID, List<UUID>> sortedBids = new ConcurrentHashMap<>(); // player : itemNotes
+    private final Map<UUID, List<UUID>> sortedPlayers = new ConcurrentHashMap<>(); // itemNote : players
+    private final Map<UUID, AuctionItem> notes = new ConcurrentHashMap<>();
+    private final Map<List<Map<String, Object>>, List<UUID>> categories = new ConcurrentHashMap<>();
 
     private AuctionManager() {
         this.dao = new AuctionDAO(AuctionHouse.getPlugin().getDatabaseManager());
     }
 
     public static AuctionManager getInstance() {
-        if (instance == null) {
-            instance = new AuctionManager();
-        }
         return instance;
     }
 
     public static void resetInstance() {
-        if (instance != null) {
-            instance.clear();
-            instance = null;
-        }
+        instance.clear();
+        instance.loaded = false;
+    }
+
+    public boolean isLoaded() {
+        return loaded;
+    }
+
+    public void setLoaded(boolean loaded) {
+        this.loaded = loaded;
     }
 
     // --- Actions (formerly ItemNoteStorage) ---
@@ -101,7 +108,6 @@ public class AuctionManager {
     }
 
     public void loadAuctions() {
-        System.out.println("[AuctionHouse-DEBUG] AuctionManager.loadAuctions() starting...");
         dao.loadAll();
     }
 
@@ -165,8 +171,10 @@ public class AuctionManager {
             sortedHighestPrice.add(note.getNoteID());
             sortedTimeLeft.add(note.getNoteID());
             sortedAlphabetical.add(note.getNoteID());
+            sortedRecentlyPosted.add(note.getNoteID());
             categories.forEach((maps, uuids) -> {
-                if (!Blacklist.isBlacklisted(note.getItem(), maps))
+                ItemStack item = note.getItem();
+                if (item != null && !Blacklist.isBlacklisted(item, maps))
                     uuids.add(note.getNoteID());
             });
         }
@@ -178,7 +186,7 @@ public class AuctionManager {
         sortedHighestPrice.remove(noteID);
         sortedTimeLeft.remove(noteID);
         sortedAlphabetical.remove(noteID);
-        sortedAlphabetical.remove(noteID); // Was duplicated in original?
+        sortedRecentlyPosted.remove(noteID);
         categories.forEach((maps, uuids) -> uuids.remove(noteID));
     }
 
@@ -188,12 +196,14 @@ public class AuctionManager {
         sortedHighestPrice.clear();
         sortedTimeLeft.clear();
         sortedAlphabetical.clear();
+        categories.clear();
     }
 
     private void updateSortedLists() {
         sortedAlphabetical.sort(Comparator.comparing(o -> notes.get(o).getItemName()));
         sortedHighestPrice.sort(Comparator.comparing(o -> notes.get(o).getPrice()));
         sortedTimeLeft.sort((Comparator.comparing(o -> notes.get(o).getTimeLeft())));
+        sortedRecentlyPosted.sort(Comparator.comparing((UUID o) -> notes.get(o).getDateCreated()).reversed());
     }
 
     // --- Bids ---
@@ -257,6 +267,7 @@ public class AuctionManager {
     // --- Sorting & Filtering ---
 
     public enum SortMode {
+        RECENTLY_POSTED,
         NAME,
         PRICE_ASC,
         PRICE_DESC,
@@ -267,14 +278,12 @@ public class AuctionManager {
         String search = c.getCurrentSearch().toLowerCase();
         List<UUID> list = new ArrayList<>();
         switch (mode) {
+            case RECENTLY_POSTED -> list = sortedRecentlyPosted;
             case DATE -> list = sortedTimeLeft;
             case NAME -> list = sortedAlphabetical;
             case PRICE_ASC -> list = sortedHighestPrice;
             case PRICE_DESC -> list = sortedHighestPrice.reversed();
         }
-
-        System.out.println("[AuctionHouse-DEBUG] getSortedList: Mode=" + mode + ", ListSize=" + list.size()
-                + ", Search='" + search + "', Filter=" + c.getBinFilter());
 
         List<AuctionItem> result = new ArrayList<>();
         int filteredOut_notOnAuctionOrExpired = 0;
@@ -329,12 +338,6 @@ public class AuctionManager {
 
             result.add(note);
         }
-        System.out.println("[AuctionHouse-DEBUG] getSortedList: ResultSize=" + result.size());
-        if (result.isEmpty() && !list.isEmpty()) {
-            System.out.println("[AuctionHouse-DEBUG]  - Filtered: NotOnAuction/Expired="
-                    + filteredOut_notOnAuctionOrExpired + ", Waiting=" + filteredOut_waitingList + ", Admin="
-                    + filteredOut_adminMsg + ", Search=" + filteredOut_search + ", BIN=" + filteredOut_bin);
-        }
         return result;
     }
 
@@ -357,8 +360,12 @@ public class AuctionManager {
 
     private void addWhiteList(List<Map<String, Object>> whitelist) {
         categories.put(whitelist, itemNotes.stream()
-                .filter(noteID -> notes.get(noteID) != null
-                        && !Blacklist.isBlacklisted(notes.get(noteID).getItem(), whitelist))
+                .filter(noteID -> {
+                    AuctionItem note = notes.get(noteID);
+                    if (note == null) return false;
+                    ItemStack item = note.getItem();
+                    return item != null && !Blacklist.isBlacklisted(item, whitelist);
+                })
                 .collect(Collectors.toList()));
     }
 
@@ -379,7 +386,7 @@ public class AuctionManager {
             return false;
 
         Economy eco = VaultHook.getEconomy();
-        double profit = Math.floor((price * 100 * (1 - SettingManager.taxRate))) / 100;
+        double profit = price; // No tax applied
         eco.depositPlayer(p, profit);
 
         if (note.getPartiallySoldAmountLeft() != 0) {
@@ -440,7 +447,13 @@ public class AuctionManager {
     // simpler.
 
     public void claimWonItem(Player p, AuctionItem note) {
-        p.getInventory().addItem(note.getItem());
+        ItemStack item = note.getItem();
+        if (item == null) {
+            p.sendMessage(ChatColor.RED + "Error: This item cannot be loaded (missing plugin dependency). Contact an admin.");
+            return;
+        }
+        
+        p.getInventory().addItem(item);
         removeBid(p, note); // This removes the player from bidders list?
         // In GUI: ItemNoteStorage.removeBid(p, note);
         // This removes the bid entry for that player?
@@ -450,9 +463,9 @@ public class AuctionManager {
         ConfigManager.transactionLogger.logTransaction(
                 p.getUniqueId(),
                 note.getPlayerUUID(),
-                note.getItem().getType().name(),
+                item.getType().name(),
                 note.getPrice(),
-                note.getItem().getAmount(),
+                item.getAmount(),
                 !note.isBIDAuction());
 
         dao.save(note);
@@ -462,12 +475,18 @@ public class AuctionManager {
         if (note == null || !note.isExpired())
             return false;
 
+        ItemStack item = note.getItem();
+        if (item == null) {
+            p.sendMessage(ChatColor.RED + "Error: This item cannot be loaded (missing plugin dependency). Contact an admin.");
+            return false;
+        }
+
         // check if inventory is full
         if (p.getInventory().firstEmpty() == -1) {
             return false;
         }
 
-        p.getInventory().addItem(note.getItem());
+        p.getInventory().addItem(item);
         deleteAuction(note);
         return true;
     }
