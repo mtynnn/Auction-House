@@ -14,7 +14,9 @@ import me.elaineqheart.auctionHouse.configuration.SlotConfigManager;
 import me.elaineqheart.auctionHouse.model.UserSession;
 import me.elaineqheart.auctionHouse.manager.ItemManager;
 import me.elaineqheart.auctionHouse.model.AuctionItem;
+import me.elaineqheart.auctionHouse.util.StringUtils;
 import org.bukkit.Bukkit;
+import org.bukkit.Material;
 import org.bukkit.entity.Player;
 import org.bukkit.event.inventory.InventoryCloseEvent;
 import org.bukkit.inventory.Inventory;
@@ -100,6 +102,24 @@ public class AuctionHouseGUI extends InventoryGUI implements Runnable {
     @Override
     public void onClose(InventoryCloseEvent event) {
         TaskManager.cancelTask(invID);
+
+        // Reset filters when the player actually closes the Auction House (not when navigating to another AH GUI)
+        if (event.getPlayer() instanceof Player p) {
+            Bukkit.getScheduler().runTaskLater(AuctionHouse.getPlugin(), () -> {
+                if (!p.isOnline()) {
+                    return;
+                }
+                Inventory top = p.getOpenInventory().getTopInventory();
+                if (AuctionHouse.getGuiManager().isHandledInventory(top)) {
+                    return; // switched to another plugin GUI (back/view/etc.)
+                }
+
+                c.setCurrentSearch("");
+                c.setBinFilter(UserSession.BINFilter.ALL);
+                c.setWhitelist(null, null);
+                c.setCurrentPage(0);
+            }, 1L);
+        }
     }
 
     private void update() {
@@ -184,6 +204,15 @@ public class AuctionHouseGUI extends InventoryGUI implements Runnable {
 
         noteSize = auctions.size();
         screenSize = itemSlots.size();
+
+        if (noteSize == 0 && hasActiveFilters()) {
+            // Show a helpful "empty state" button so players can recover easily
+            int firstSlot = itemSlots.isEmpty() ? -1 : itemSlots.get(0);
+            if (firstSlot != -1) {
+                this.addButton(firstSlot, noResultsButton());
+            }
+        }
+
         int start = c.getCurrentPage() * screenSize;
         int stop = start + screenSize;
         int end = Math.min(noteSize, stop);
@@ -212,6 +241,45 @@ public class AuctionHouseGUI extends InventoryGUI implements Runnable {
                 continue;
             this.addButton(slot, auctionItem(note));
         }
+    }
+
+    private boolean hasActiveFilters() {
+        return !c.getCurrentSearch().isEmpty()
+                || c.getBinFilter() != UserSession.BINFilter.ALL
+                || c.getWhitelist() != null;
+    }
+
+    private InventoryButton noResultsButton() {
+        ItemStack item = new ItemStack(Material.BARRIER);
+        ItemMeta meta = item.getItemMeta();
+        if (meta != null) {
+            meta.setItemName(StringUtils.colorize("<red>Sin resultados"));
+            List<String> lore = new ArrayList<>();
+            lore.add(StringUtils.colorize("<gray>No se encontraron ítems con tus filtros."));
+            if (!c.getCurrentSearch().isEmpty()) {
+                lore.add(StringUtils.colorize("<gray>Búsqueda: <color:#FFD180>" + StringUtils.escapeMiniMessage(c.getCurrentSearch())));
+            }
+            if (c.getBinFilter() != UserSession.BINFilter.ALL) {
+                lore.add(StringUtils.colorize("<gray>Tipo: <color:#FFD180>" + c.getBinFilter().name()));
+            }
+            lore.add("");
+            lore.add(StringUtils.colorize("<yellow>Clic para limpiar filtros"));
+            lore.add(StringUtils.colorize("<gray>(o clic derecho en la lupa)"));
+            meta.setLore(lore);
+            meta.setHideTooltip(true);
+            item.setItemMeta(meta);
+        }
+
+        return new InventoryButton()
+                .creator(player -> item)
+                .consumer(event -> {
+                    Sounds.breakWood(event);
+                    c.setCurrentSearch("");
+                    c.setBinFilter(UserSession.BINFilter.ALL);
+                    c.setWhitelist(null, null);
+                    c.setCurrentPage(0);
+                    update();
+                });
     }
 
     private InventoryButton auctionItem(AuctionItem note) {

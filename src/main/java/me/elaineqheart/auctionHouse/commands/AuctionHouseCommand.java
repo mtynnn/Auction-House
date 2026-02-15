@@ -20,6 +20,11 @@ import me.elaineqheart.auctionHouse.manager.AuctionManager;
 import me.elaineqheart.auctionHouse.world.displays.CreateDisplay;
 import me.elaineqheart.auctionHouse.world.displays.UpdateDisplay;
 import me.elaineqheart.auctionHouse.world.npc.NPCManager;
+import net.md_5.bungee.api.chat.BaseComponent;
+import net.md_5.bungee.api.chat.ClickEvent;
+import net.md_5.bungee.api.chat.HoverEvent;
+import net.md_5.bungee.api.chat.TextComponent;
+import net.md_5.bungee.api.chat.hover.content.Text;
 import org.bukkit.Bukkit;
 import org.bukkit.Location;
 import org.bukkit.Material;
@@ -197,14 +202,49 @@ public class AuctionHouseCommand implements CommandExecutor, TabCompleter {
                 // Announce the new auction to all players who have announcements enabled
                 if (SettingManager.auctionAnnouncementsEnabled) {
                     String itemName = StringUtils.getItemName(inputItem);
+                    String auctionCommand = "/" + Objects.requireNonNullElse(M.get().getString("command-names.ah"), "ah")
+                            .toLowerCase(Locale.ROOT);
                     Bukkit.getScheduler().runTaskLater(AuctionHouse.getPlugin(), () -> {
                         for (Player onlinePlayer : Bukkit.getOnlinePlayers()) {
                             if (ConfigManager.playerPreferences.hasAnnouncementsEnabled(onlinePlayer.getUniqueId())
                                     && !onlinePlayer.equals(p)) {
-                                M.sendMessage(onlinePlayer, "chat.auction-announcement", finalPrice,
-                                        "%player%", StringUtils.escapeMiniMessage(p.getDisplayName()),
+                                String sellerName = StringUtils.escapeMiniMessage(p.getDisplayName());
+                                String amountString = String.valueOf(finalAmount);
+
+                                String announcementLegacy = M.getFormatted("chat.auction-announcement", finalPrice,
+                                        "%player%", sellerName,
                                         "%item%", itemName,
-                                        "%amount%", String.valueOf(finalAmount));
+                                        "%amount%", amountString);
+
+                                String hoverLegacy;
+                                if (M.get().contains("chat.auction-announcement-hover")) {
+                                    hoverLegacy = M.getFormatted("chat.auction-announcement-hover", finalPrice,
+                                            "%player%", sellerName,
+                                            "%item%", itemName,
+                                            "%amount%", amountString,
+                                            "%command%", auctionCommand);
+                                } else {
+                                    String hoverMM = M.getMM("chat.auction-announcement", finalPrice,
+                                            "%player%", sellerName,
+                                            "%item%", itemName,
+                                            "%amount%", amountString)
+                                            + "\n<yellow>Clic para abrir <color:#FFD180>"
+                                            + StringUtils.escapeMiniMessage(auctionCommand);
+                                    hoverLegacy = M.adventureApi(hoverMM);
+                                }
+
+                                BaseComponent[] announcementComponents = TextComponent.fromLegacyText(announcementLegacy);
+                                BaseComponent[] hoverComponents = TextComponent.fromLegacyText(hoverLegacy);
+
+                                ClickEvent clickEvent = new ClickEvent(ClickEvent.Action.RUN_COMMAND, auctionCommand);
+                                HoverEvent hoverEvent = new HoverEvent(HoverEvent.Action.SHOW_TEXT, new Text(hoverComponents));
+
+                                for (BaseComponent component : announcementComponents) {
+                                    component.setClickEvent(clickEvent);
+                                    component.setHoverEvent(hoverEvent);
+                                }
+
+                                onlinePlayer.spigot().sendMessage(announcementComponents);
                             }
                         }
                     }, SettingManager.auctionSetupTime * 20);

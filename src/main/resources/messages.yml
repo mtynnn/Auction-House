@@ -95,6 +95,7 @@ command-feedback:
 
 chat:
   auction-announcement: "%prefix%<color:#FFD180>%player% <gray>vende <color:#FFD180>%item% <gray>x%amount% por <color:#FFD180>%price%"
+  auction-announcement-hover: "<gray>Vendedor: <color:#FFD180>%player%&n<gray>Ítem: <color:#FFD180>%item%&n<gray>Cantidad: <color:#FFD180>%amount%&n<gray>Precio: <color:#FFD180>%price%&n&n<yellow>Clic para abrir <color:#FFD180>%command%"
   collect-sold-auction: "%prefix%<gray>Recibiste <color:#FFD180>%profit% <gray>por la venta de <color:#FFD180>%item%<gray>."
   inventory-full: "%prefix%<red>Tu inventario está lleno. El ítem cayó al suelo."
   non-existent2: "%prefix%<red>Esta subasta ya no existe."

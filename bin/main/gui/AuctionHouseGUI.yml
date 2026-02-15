@@ -22,7 +22,10 @@ lore:
     - '<gray>Clic para buscar'
     - '<gray>ítems específicos.'
     - ''
+    - '<gray>Búsqueda actual: <color:#FFD180>{filter}'
+    - ''
     - '<color:#FFD180>▶ Clic para buscar'
+    - '<gray>▶ Clic derecho: limpiar'
 
   filter-lore:
     divider-top: ' '

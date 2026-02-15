@@ -33,6 +33,10 @@ public class GUIManager {
         this.activeInventories.remove(inventory);
     }
 
+    public boolean isHandledInventory(Inventory inventory) {
+        return inventory != null && this.activeInventories.containsKey(inventory);
+    }
+
     public void handleClick(InventoryClickEvent event) {
         InventoryHandler handler = this.activeInventories.get(event.getInventory());
         if (handler == null) return;
