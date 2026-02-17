@@ -119,7 +119,6 @@ public class ConfirmBuyGUI extends InventoryGUI {
                         return;
                     }
                     Economy eco = VaultHook.getEconomy();
-                    Bukkit.getScheduler().runTask(AuctionHouse.getPlugin(), p::closeInventory);
                     if (eco.getBalance(p) < price) {
                         p.sendMessage(M.getFormatted("chat.not-enough-money"));
                         Sounds.villagerDeny(event);
@@ -140,7 +139,8 @@ public class ConfirmBuyGUI extends InventoryGUI {
                     AuctionManager.getInstance().updateAuction(note);
                     p.sendMessage(M.getFormatted("chat.purchase-auction",
                             "%player%", StringUtils.escapeMiniMessage(note.getPlayerName()),
-                            "%item%", note.getItemName()));
+                            "%item%", note.getItemName(),
+                            "%price%", StringUtils.formatPrice(price)));
                     Player seller = Bukkit.getPlayer(note.getPlayerUUID());
                     if (SettingManager.soldMessageEnabled && seller != null
                             && seller.isOnline()) {
@@ -167,6 +167,10 @@ public class ConfirmBuyGUI extends InventoryGUI {
                             price,
                             item.getAmount(),
                             !note.isBIDAuction());
+
+                    // Keep AH flow continuous after buying.
+                    Bukkit.getScheduler().runTask(AuctionHouse.getPlugin(),
+                            () -> AuctionHouse.getGuiManager().openGUI(new AuctionHouseGUI(c), p));
                 });
     }
 

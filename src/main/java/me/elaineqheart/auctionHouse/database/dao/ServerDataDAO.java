@@ -4,6 +4,7 @@ import com.google.gson.Gson;
 import me.elaineqheart.auctionHouse.AuctionHouse;
 import me.elaineqheart.auctionHouse.configuration.BannedPlayers;
 import me.elaineqheart.auctionHouse.configuration.Blacklist;
+import me.elaineqheart.auctionHouse.util.Debug;
 
 import me.elaineqheart.auctionHouse.database.DatabaseManager;
 import org.bukkit.Bukkit;
@@ -76,11 +77,13 @@ public class ServerDataDAO {
                         }.getType();
                         Map<UUID, BannedPlayers.BanEntry> bans = gson.fromJson(params, mapType);
                         BannedPlayers.setBans(bans);
+                        Debug.log("Loaded banned players: " + (bans == null ? 0 : bans.size()));
                     } else if ("BLACKLIST".equals(type)) {
                         java.lang.reflect.Type listType = new com.google.gson.reflect.TypeToken<List<Map<String, Object>>>() {
                         }.getType();
                         List<Map<String, Object>> blacklist = gson.fromJson(params, listType);
                         Blacklist.setBlacklist(blacklist);
+                        Debug.log("Loaded blacklist entries: " + (blacklist == null ? 0 : blacklist.size()));
                     }
                 }
             } catch (SQLException e) {
@@ -115,6 +118,7 @@ public class ServerDataDAO {
             stmt.setString(1, type);
             stmt.setString(2, params);
             stmt.executeUpdate();
+            Debug.log("Saved server_data type=" + type + " bytes=" + (params == null ? 0 : params.length()));
         } catch (SQLException e) {
             e.printStackTrace();
         }

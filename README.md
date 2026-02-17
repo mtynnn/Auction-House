@@ -1,168 +1,105 @@
-# Auction-House
-use /ah to open the Acution House
+# AuctionHouse - Documentación Técnica
 
-Plugin originally made for SpireMC; This is a spigot plugin and I'm using gradle. The plugin works both on spigot and paper servers on 1.21.4, maybe even never versions.
+`AuctionHouse` es un plugin de casa de subastas para Minecraft (Paper/Spigot 1.21+) con GUI, ventas directas (BIN), subastas por puja (BID), anuncios en chat por jugador y almacenamiento persistente (SQLite).
 
-*spigot mc page for some images:* 
-https://www.spigotmc.org/resources/auction-house.125238/
+## Requisitos y Dependencias
 
-*also modrinth page:* https://modrinth.com/plugin/auction-house-plugin
+Para un funcionamiento correcto:
 
----
+- Java: 21 o superior.
+- Servidor: Paper/Purpur/Spigot 1.21+.
+- Vault + un plugin de economía (EssentialsX, CMI, etc.).
+- PlaceholderAPI (opcional): placeholders `%auctionhouse_*%`.
+- Locale-API (opcional): búsqueda/ítems traducidos por jugador.
 
-## 🚀 Features
+## Compilación
 
-- ✅ **PlugMan Reload Compatible** - Full support for hot-reload using PlugManX
-- ✅ **Corrupted Item Protection** - Items from missing plugins (custom enchantments) won't crash the server
-- ✅ **Optimized Performance** - `/ah sell` command responds instantly (async price validation)
-- ✅ **Pterodactyl/Docker Ready** - Compatible with containerized environments
-- ✅ **HikariCP Connection Pool** - Efficient database connection management
-- ✅ **SQLite w/ WAL Mode** - Prevents database locking issues
+Este proyecto usa Gradle.
 
----
-
-## 📦 Installation
-
-1. Download the latest `.jar` from [Releases](https://github.com/yourusername/Auction-House/releases)
-2. Place in `plugins/` folder
-3. Restart server
-4. Configure `plugins/Auction-House/config.yml`
-
-**Requirements:**
-- Minecraft 1.21+ (Spigot/Paper/Purpur)
-- Vault + Economy plugin (EssentialsX, CMI, etc.)
-- **LuckPerms** (recommended for permission-based auction slots)
-- **PlaceholderAPI** (optional, for placeholders integration)
-
----
-
-## 📊 PlaceholderAPI Support
-
-The plugin includes full PlaceholderAPI integration with 15+ placeholders including:
-
-- `%auctionhouse_notifications%` - Si el jugador tiene notificaciones activadas (yes/no)
-- `%auctionhouse_active_auctions%` - Número de subastas activas del jugador
-- `%auctionhouse_max_auctions%` - Límite máximo de subastas
-- `%auctionhouse_total_auctions%` - Total de subastas en el servidor
-- And more...
-
-**Full placeholder list:** [PLACEHOLDERS.md](PLACEHOLDERS.md)
-
----
-
-## 🔐 LuckPerms Configuration
-
-Configure auction slot limits per group using permission nodes:
-
-```bash
-# Give each group their auction slot permission
-/lp group guardian permission set auctionhouse.slots.guardian    # 6 slots
-/lp group elite permission set auctionhouse.slots.elite          # 15 slots
-/lp group leyenda permission set auctionhouse.slots.leyenda      # 18 slots
-```
-
-**Full setup guide:** [LUCKPERMS_SETUP.md](LUCKPERMS_SETUP.md)
-
-**Quick config in `permissions.yml`:**
-```yaml
-auction-slots:
-  auctionhouse.slots.guardian: 6
-  auctionhouse.slots.elite: 15
-  auctionhouse.slots.leyenda: 18
-```
-
----
-
-## 🐳 Pterodactyl / Docker Setup
-
-**Primero, verifica tu entorno:**
-
-```bash
-bash check-environment.sh
-```
-
-Esto te dirá si estás en Pterodactyl, el usuario actual, y el estado de los permisos.
-
----
-
-If you're running on Pterodactyl or Docker, you may need to fix file permissions:
-
-```bash
-cd /home/container/plugins/Auction-House
-chmod -R 777 data/
-```
-
-**OR** run the automated script:
-```bash
-bash fix-pterodactyl-permissions.sh
-```
-
-📖 **Full guide:** [PTERODACTYL.md](PTERODACTYL.md)
-
----
-
-## 🔄 PlugMan Reload
-
-Tested and working with [PlugManX](https://www.spigotmc.org/resources/plugmanx.88135/):
+1) Clona el repositorio:
 
 ```
-/plugman reload AuctionHouse
+git clone https://github.com/elaineqheart/Auction-House.git
 ```
 
-The plugin will display `[PlugMan-Compatible]` logs during shutdown/reload to confirm proper cleanup.
+2) Compila:
 
----
+Windows:
 
-## 🛠️ Building from Source
-
-```bash
-git clone https://github.com/yourusername/Auction-House.git
-cd Auction-House
-./gradlew shadowJar
+```
+gradlew.bat clean build
 ```
 
-Output: `build/libs/AuctionHouse-1.4.3.jar`
+Linux/macOS:
 
----
+```
+./gradlew clean build
+```
 
-## ⚠️ Known Issues & Fixes
+3) El jar generado queda en:
 
-### Database Permission Errors (Pterodactyl)
-**Error:** `[SQLITE_READONLY_DIRECTORY] Process does not have permission...`
+- `build/libs/AuctionHouse-<version>.jar`
 
-**Fix:** Run `chmod -R 777 plugins/Auction-House/data/` or see [PTERODACTYL.md](PTERODACTYL.md)
+## Características
 
-### Items from Missing Plugins
-**Issue:** Server had custom enchantments from `nova_structures` plugin (now removed)
+## Sistema de Subastas
 
-**Fixed:** Plugin automatically handles corrupted items by displaying them as red BARRIER blocks with informative lore. Players can still see and manage their auctions.
+- GUI principal con paginación, ordenamiento y búsqueda.
+- BIN (`/ah sell`) y BID (`/ah bid`) según configuración.
+- Compra/visualización de un ítem por UUID: `/ah view <uuid>` (abre el mismo menú de compra que el click del anuncio).
+- Anuncios en chat por jugador (toggle): `/ah announce`.
+- Protección de precio (opcional): validación asíncrona contra promedio histórico con timeout para no congelar el servidor.
 
-### Commands Taking 4 Seconds
-**Issue:** `/ah sell <price>` had 4-second delay
+## Filtros de GUI (Importante)
 
-**Fixed:** Price validation now runs asynchronously (500ms timeout instead of blocking main thread)
+Los “menús vacíos” casi siempre se deben a filtros activos:
 
----
+- Búsqueda: se guarda por sesión y se limpia con clic derecho en la lupa.
+- Filtro BIN/BID (si ambos modos están activos).
+- Whitelist/categorías (si se usa).
 
-## 🤝 Contributing
+Para evitar confusión, cuando una búsqueda/filtro deja 0 resultados se muestra un botón “Sin resultados” que limpia filtros.
 
-Contributions welcome! Please:
-1. Fork the repository
-2. Create a feature branch
-3. Test on Paper 1.21+
-4. Submit a pull request
+## Seguridad y Performance
 
----
+- SQLite con pool (HikariCP) y enfoque “PlugMan-compatible” (shutdown limpio + cancelación de tasks).
+- Manejo de ítems “corruptos” (dependencias faltantes) usando un placeholder (BARRIER) en vez de crashear.
+- Cache de ítems renderizados por jugador para reducir coste de construir lore/item-meta.
 
-## 📝 License
+## Comandos y Permisos
 
-See [LICENSE](LICENSE) file for details.
+## Comandos de Usuario
 
----
+Comando | Descripción | Permiso
+--- | --- | ---
+`/ah` | Abre la casa de subastas | `auctionhouse.ah`
+`/ah sell <precio> [cantidad]` | Publica una venta directa (BIN) | `auctionhouse.ah`
+`/ah bid <precio> [cantidad]` | Publica una subasta de puja (BID) | `auctionhouse.ah`
+`/ah announce` | Activa/desactiva anuncios en chat | `auctionhouse.ah`
 
-## 🙏 Credits
+## Comandos Técnicos/Internos
 
-- Original plugin for SpireMC
-- Built with Gradle
-- Uses HikariCP for connection pooling
-- Vault API for economy integration
+Comando | Descripción
+--- | ---
+`/ah view <uuid>` | Abre el menú de compra/gestión de una subasta concreta
+
+## Configuración
+
+Archivos principales:
+
+- `src/main/resources/config.yml` (settings generales)
+- `src/main/resources/messages.yml` (mensajes y anuncios)
+- `src/main/resources/permissions.yml` (slots/límites por permisos)
+- `src/main/resources/gui/*.yml` (GUIs)
+
+## Placeholders (PlaceholderAPI)
+
+Identificador: `auctionhouse`
+
+- Lista completa: `PLACEHOLDERS.md`
+- Ejemplos: `PLACEHOLDERS_EXAMPLES.md`
+
+## Notas de Integración
+
+- El anuncio de nueva subasta en chat es clickeable: al hacer clic abre la compra del ítem específico (usa `/ah view <uuid>`).
+- Si un jugador reporta “no veo ítems”, revisa primero si tiene una búsqueda activa o el filtro BIN/BID cambiado.

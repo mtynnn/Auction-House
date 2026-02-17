@@ -177,6 +177,12 @@ public class ConfigManager {
 
     public static void reloadConfigs() {
         AuctionHouse.getPlugin().reloadConfig();
+        try {
+            AuctionHouse.getPlugin().getConfig().options().copyDefaults(true);
+            AuctionHouse.getPlugin().saveConfig();
+        } catch (Exception e) {
+            AuctionHouse.getPlugin().getLogger().warning("Could not save config.yml on reload: " + e.getMessage());
+        }
         getList().forEach(Config::reload);
     }
 

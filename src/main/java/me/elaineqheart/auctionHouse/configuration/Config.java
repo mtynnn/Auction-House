@@ -17,9 +17,13 @@ public class Config {
     private File file;
     private FileConfiguration customFile;
     private String fileName;
+    private boolean copyDefaults;
+    private String parent;
 
     public void setup(String fileName, boolean copyDefaults, String parent) {
         this.fileName = fileName;
+        this.copyDefaults = copyDefaults;
+        this.parent = parent;
         file = new File(AuctionHouse.getPlugin().getDataFolder() + parent, fileName);
 
         if (!file.exists()) {
@@ -89,6 +93,16 @@ public class Config {
 
     public void reload() {
         customFile = YamlConfiguration.loadConfiguration(file);
+
+        if (copyDefaults) {
+            final InputStream defConfigStream = AuctionHouse.getPlugin().getResource(parent + fileName);
+            if (defConfigStream != null) {
+                customFile.setDefaults(
+                        YamlConfiguration.loadConfiguration(new InputStreamReader(defConfigStream, Charsets.UTF_8)));
+                customFile.options().copyDefaults(true);
+                save(); // ensure new keys are written during /ah reload or PlugMan reload
+            }
+        }
         reloadChild();
     }
 

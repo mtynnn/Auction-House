@@ -8,6 +8,7 @@ import org.bukkit.configuration.file.YamlConfiguration;
 import java.io.File;
 import java.io.InputStream;
 import java.io.InputStreamReader;
+import java.io.IOException;
 import java.nio.charset.StandardCharsets;
 import java.util.ArrayList;
 import java.util.List;
@@ -53,6 +54,12 @@ public class GuiConfig {
             YamlConfiguration defaultConfig = YamlConfiguration.loadConfiguration(
                     new InputStreamReader(defaultStream, StandardCharsets.UTF_8));
             config.setDefaults(defaultConfig);
+            config.options().copyDefaults(true);
+            try {
+                config.save(configFile); // merge new keys into existing file on reload
+            } catch (IOException e) {
+                plugin.getLogger().warning("Could not save merged defaults for " + guiName + ".yml: " + e.getMessage());
+            }
         }
     }
 

@@ -59,6 +59,9 @@ public class SettingManager {
     public static String formatMoneyT;
     public static boolean formatShowDecimals;
 
+    // Debug settings
+    public static boolean debugEnabled;
+
     // Time units (Small Caps)
     public static String timeUnitDays;
     public static String timeUnitDay;
@@ -158,8 +161,24 @@ public class SettingManager {
         // SoundsConfig)
         loadLegacySounds();
 
+        // Debug
+        debugEnabled = c.getBoolean("debug.enabled", false);
+
         if (ConfigManager.backwardsCompatibility())
             backwardsCompatibility();
+    }
+
+    public static void setDebugEnabled(boolean enabled, boolean persist) {
+        debugEnabled = enabled;
+        if (persist) {
+            try {
+                FileConfiguration c = AuctionHouse.getPlugin().getConfig();
+                c.set("debug.enabled", enabled);
+                AuctionHouse.getPlugin().saveConfig();
+            } catch (Exception e) {
+                AuctionHouse.getPlugin().getLogger().warning("Could not persist debug.enabled: " + e.getMessage());
+            }
+        }
     }
 
     private static void loadLegacySounds() {

@@ -7,6 +7,7 @@ import me.elaineqheart.auctionHouse.configuration.ConfigManager;
 import me.elaineqheart.auctionHouse.database.dao.AuctionDAO;
 import me.elaineqheart.auctionHouse.model.AuctionItem;
 import me.elaineqheart.auctionHouse.model.UserSession;
+import me.elaineqheart.auctionHouse.util.Debug;
 import org.bukkit.Bukkit;
 import org.bukkit.ChatColor;
 import org.bukkit.OfflinePlayer;
@@ -60,15 +61,22 @@ public class AuctionManager {
 
     // --- Actions (formerly ItemNoteStorage) ---
 
-    public void createAuction(Player p, ItemStack item, double price, boolean isBIDAuction) {
+    public AuctionItem createAuction(Player p, ItemStack item, double price, boolean isBIDAuction) {
         AuctionItem auctionItem = new AuctionItem(p, item, price, isBIDAuction);
         add(auctionItem);
         dao.save(auctionItem);
+        Debug.log("Created auction id=" + auctionItem.getNoteID() + " seller=" + p.getName() + " item="
+                + (item == null ? "null" : item.getType()) + " amount=" + (item == null ? 0 : item.getAmount())
+                + " price=" + price + " bid=" + isBIDAuction);
+        return auctionItem;
     }
 
     public void deleteAuction(AuctionItem item) {
         remove(item);
         dao.delete(item);
+        if (item != null) {
+            Debug.log("Deleted auction id=" + item.getNoteID() + " seller=" + item.getPlayerName());
+        }
     }
 
     public void updateAuction(AuctionItem item) {
@@ -82,12 +90,14 @@ public class AuctionManager {
         // Update RAM cache for bids
         addBidToCache(player.getUniqueId(), item.getNoteID());
         dao.save(item);
+        Debug.log("Bid placed auction=" + item.getNoteID() + " bidder=" + player.getName() + " amount=" + amount);
     }
 
     public void removeBid(Player player, AuctionItem item) {
         item.removeBid(player);
         removeBidFromCache(player.getUniqueId(), item.getNoteID());
         dao.save(item);
+        Debug.log("Bid removed auction=" + item.getNoteID() + " bidder=" + player.getName());
     }
 
     public void expireAuction(AuctionItem item, String reason) {
@@ -154,7 +164,7 @@ public class AuctionManager {
     }
 
     public List<AuctionItem> getAll() {
-        return itemNotes.stream().map(notes::get).collect(Collectors.toList());
+        return itemNotes.stream().map(notes::get).filter(Objects::nonNull).collect(Collectors.toList());
     }
 
     // --- Private Helper Methods ---
@@ -337,6 +347,16 @@ public class AuctionManager {
             }
 
             result.add(note);
+        }
+
+        if (Debug.isEnabled() && result.isEmpty() && c != null && c.getPlayer() != null) {
+            Debug.log("AH list empty for " + c.getPlayer().getName()
+                    + " search=\"" + c.getCurrentSearch() + "\" binFilter=" + c.getBinFilter()
+                    + " filtered(notOnAuction/expired)=" + filteredOut_notOnAuctionOrExpired
+                    + " waiting=" + filteredOut_waitingList
+                    + " adminMsg=" + filteredOut_adminMsg
+                    + " search=" + filteredOut_search
+                    + " bin=" + filteredOut_bin);
         }
         return result;
     }

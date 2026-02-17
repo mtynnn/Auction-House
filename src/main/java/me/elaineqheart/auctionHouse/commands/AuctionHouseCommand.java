@@ -26,6 +26,7 @@ import net.md_5.bungee.api.chat.HoverEvent;
 import net.md_5.bungee.api.chat.TextComponent;
 import net.md_5.bungee.api.chat.hover.content.Text;
 import org.bukkit.Bukkit;
+import org.bukkit.ChatColor;
 import org.bukkit.Location;
 import org.bukkit.Material;
 import org.bukkit.Sound;
@@ -195,7 +196,7 @@ public class AuctionHouseCommand implements CommandExecutor, TabCompleter {
                     });
                 }
                 
-                AuctionManager.getInstance().createAuction(p, inputItem, finalPrice,
+                AuctionItem createdAuction = AuctionManager.getInstance().createAuction(p, inputItem, finalPrice,
                         strings[0].equals(M.getFormatted("command-names.bid")));
                 M.sendMessage(p, "command-feedback.auction", finalPrice);
 
@@ -204,6 +205,7 @@ public class AuctionHouseCommand implements CommandExecutor, TabCompleter {
                     String itemName = StringUtils.getItemName(inputItem);
                     String auctionCommand = "/" + Objects.requireNonNullElse(M.get().getString("command-names.ah"), "ah")
                             .toLowerCase(Locale.ROOT);
+                    String viewCommand = auctionCommand + " view " + createdAuction.getNoteID();
                     Bukkit.getScheduler().runTaskLater(AuctionHouse.getPlugin(), () -> {
                         for (Player onlinePlayer : Bukkit.getOnlinePlayers()) {
                             if (ConfigManager.playerPreferences.hasAnnouncementsEnabled(onlinePlayer.getUniqueId())
@@ -228,15 +230,14 @@ public class AuctionHouseCommand implements CommandExecutor, TabCompleter {
                                             "%player%", sellerName,
                                             "%item%", itemName,
                                             "%amount%", amountString)
-                                            + "\n<yellow>Clic para abrir <color:#FFD180>"
-                                            + StringUtils.escapeMiniMessage(auctionCommand);
+                                            + "\n<yellow>Clic para abrir el menú de compra";
                                     hoverLegacy = M.adventureApi(hoverMM);
                                 }
 
                                 BaseComponent[] announcementComponents = TextComponent.fromLegacyText(announcementLegacy);
                                 BaseComponent[] hoverComponents = TextComponent.fromLegacyText(hoverLegacy);
 
-                                ClickEvent clickEvent = new ClickEvent(ClickEvent.Action.RUN_COMMAND, auctionCommand);
+                                ClickEvent clickEvent = new ClickEvent(ClickEvent.Action.RUN_COMMAND, viewCommand);
                                 HoverEvent hoverEvent = new HoverEvent(HoverEvent.Action.SHOW_TEXT, new Text(hoverComponents));
 
                                 for (BaseComponent component : announcementComponents) {
@@ -286,11 +287,29 @@ public class AuctionHouseCommand implements CommandExecutor, TabCompleter {
                 if (strings.length == 1 && strings[0].equals(M.getFormatted("command-names.admin"))) {
                     AuctionHouse.getGuiManager()
                             .openGUI(new AuctionHouseGUI(0, AuctionHouseGUI.Sort.RECENTLY_POSTED, "", p, true), p);
-                } 
+                }
+                // /ah debug on|off - Toggle global debug logging
+                else if (strings.length == 2 && strings[0].equals("debug")) {
+                    String arg = strings[1].toLowerCase(Locale.ROOT);
+                    if (arg.equals("on")) {
+                        SettingManager.setDebugEnabled(true, true);
+                        p.sendMessage(M.getFormatted("command-feedback.debug-enabled"));
+                        return true;
+                    }
+                    if (arg.equals("off")) {
+                        SettingManager.setDebugEnabled(false, true);
+                        p.sendMessage(M.getFormatted("command-feedback.debug-disabled"));
+                        return true;
+                    }
+                    p.sendMessage(M.getFormatted("command-feedback.debug-usage"));
+                    return true;
+                }
                 // /ah debug - Show system diagnostics
                 else if (strings.length == 1 && strings[0].equals("debug")) {
                     p.sendMessage("§6§l[AuctionHouse Debug Info]§r");
                     p.sendMessage("§7Version: §f" + AuctionHouse.getPlugin().getDescription().getVersion());
+                    p.sendMessage("");
+                    p.sendMessage("§7Debug: " + (SettingManager.debugEnabled ? "§aON" : "§cOFF"));
                     p.sendMessage("");
                     
                     // Auction stats
@@ -317,7 +336,7 @@ public class AuctionHouseCommand implements CommandExecutor, TabCompleter {
                     
                     // Config settings
                     p.sendMessage("§e§lConfig:§r");
-                    p.sendMessage("  §7Debug Logging: §f" + AuctionHouse.getPlugin().getConfig().getBoolean("debug.log-corrupted-items", false));
+                    p.sendMessage("  §7log-corrupted-items: §f" + AuctionHouse.getPlugin().getConfig().getBoolean("debug.log-corrupted-items", false));
                     p.sendMessage("  §7Max Stack: §f" + AuctionHouse.getPlugin().getConfig().getInt("debug.max-stack-size", 576));
                     p.sendMessage("  §7Price Protection: §f" + SettingManager.priceProtectionEnabled);
                     p.sendMessage("");
@@ -467,6 +486,60 @@ public class AuctionHouseCommand implements CommandExecutor, TabCompleter {
                         p.sendMessage(M.getFormatted("command-feedback.blacklist-undo-error"));
                     }
                     return true;
+                } else if ((strings.length == 2 || strings.length == 3)
+                        && strings[0].equals(M.getFormatted("command-names.blacklist"))
+                        && strings[1].equals(M.getFormatted("command-names.list"))) {
+                    int page = 1;
+                    if (strings.length == 3) {
+                        try {
+                            page = Integer.parseInt(strings[2]);
+                        } catch (NumberFormatException e) {
+                            p.sendMessage(M.getFormatted("command-feedback.blacklist-list-usage"));
+                            return true;
+                        }
+                    }
+                    if (page < 1) {
+                        p.sendMessage(M.getFormatted("command-feedback.blacklist-list-usage"));
+                        return true;
+                    }
+
+                    List<Map<String, Object>> entries = Blacklist.getBlacklist();
+                    int count = entries.size();
+                    if (count == 0) {
+                        p.sendMessage(M.getFormatted("command-feedback.blacklist-list-empty"));
+                        return true;
+                    }
+
+                    int pageSize = 10;
+                    int pages = (count + pageSize - 1) / pageSize;
+                    if (page > pages) {
+                        page = pages;
+                    }
+                    int start = (page - 1) * pageSize;
+                    int end = Math.min(count, start + pageSize);
+
+                    p.sendMessage(M.getFormatted("command-feedback.blacklist-list-header",
+                            "%count%", String.valueOf(count),
+                            "%page%", String.valueOf(page),
+                            "%pages%", String.valueOf(pages)));
+
+                    for (int i = start; i < end; i++) {
+                        Map<String, Object> entry = entries.get(i);
+                        String type = Objects.toString(entry.get("type"), "?");
+                        Object keyObj = entry.get("key");
+                        String key = formatBlacklistKey(keyObj);
+
+                        p.sendMessage(M.getFormatted("command-feedback.blacklist-list-entry",
+                                "%index%", String.valueOf(i + 1),
+                                "%type%", type,
+                                "%key%", StringUtils.escapeMiniMessage(key)));
+                    }
+
+                    if (page < pages) {
+                        p.sendMessage(M.getFormatted("command-feedback.blacklist-list-footer",
+                                "%next%", String.valueOf(page + 1)));
+                    }
+                    return true;
                 } else if (strings.length < 3 && strings[0].equals(M.getFormatted("command-names.blacklist"))) {
                     p.sendMessage(M.getFormatted("command-feedback.blacklist-usage"));
                     return true;
@@ -510,11 +583,32 @@ public class AuctionHouseCommand implements CommandExecutor, TabCompleter {
                 } else if (strings.length == 4 && strings[0].equals(M.getFormatted("command-names.blacklist"))
                         && strings[1].equals(M.getFormatted("command-names.add"))) {
 
-                    if (strings[2].equals(M.getFormatted("command-names.exact"))
-                            || strings[2].equals(M.getFormatted("command-names.material")))
+                    if (strings[2].equals(M.getFormatted("command-names.exact")))
                         return true;
 
-                    if (strings[2].equals(M.getFormatted("command-names.contains_lore"))) {
+                    if (strings[2].equals(M.getFormatted("command-names.material"))) {
+                        Material material = Material.matchMaterial(strings[3].trim(), true);
+                        if (material == null) {
+                            // Try fallback: allow minecraft:foo and lower-case
+                            String normalized = strings[3].trim();
+                            if (normalized.contains(":")) {
+                                normalized = normalized.split(":", 2)[1];
+                            }
+                            normalized = normalized.replace(" ", "_").toUpperCase(Locale.ROOT);
+                            material = Material.matchMaterial(normalized);
+                            if (material == null) {
+                                material = Material.getMaterial(normalized);
+                            }
+                        }
+                        if (material == null) {
+                            p.sendMessage(M.getFormatted("command-feedback.blacklist-invalid-material", "%input%",
+                                    StringUtils.escapeMiniMessage(strings[3])));
+                            return true;
+                        }
+                        ConfigManager.blacklist.addMaterial(material.name());
+                        p.sendMessage(M.getFormatted("command-feedback.blacklist-success", "%item%", material.name()));
+                        return true;
+                    } else if (strings[2].equals(M.getFormatted("command-names.contains_lore"))) {
                         ConfigManager.blacklist.addLoreContains(strings[3]);
                     } else if (strings[2].equals(M.getFormatted("command-names.name_contains"))) {
                         ConfigManager.blacklist.addNameContains(strings[3]);
@@ -568,6 +662,12 @@ public class AuctionHouseCommand implements CommandExecutor, TabCompleter {
             for (Player p : Bukkit.getOnlinePlayers()) {
                 params.add(p.getDisplayName());
             }
+        } else if (strings.length == 2 && strings[0].equals("debug")) {
+            for (String opt : List.of("on", "off")) {
+                if (opt.indexOf(strings[1].toLowerCase(Locale.ROOT)) == 0) {
+                    params.add(opt);
+                }
+            }
         } else if (strings.length == 2 && strings[0].equals(M.getFormatted("command-names.pardon"))) {
             Map<java.util.UUID, me.elaineqheart.auctionHouse.configuration.BannedPlayers.BanEntry> bans = me.elaineqheart.auctionHouse.configuration.BannedPlayers
                     .getBans();
@@ -587,7 +687,7 @@ public class AuctionHouseCommand implements CommandExecutor, TabCompleter {
             }
         } else if (strings.length == 2 && strings[0].equals(M.getFormatted("command-names.blacklist"))) {
             List<String> summonTypes = new ArrayList<>(List.of(new String[] { M.getFormatted("command-names.add"),
-                    M.getFormatted("command-names.undo") }));
+                    M.getFormatted("command-names.undo"), M.getFormatted("command-names.list") }));
             for (String p : summonTypes) {
                 if (p.indexOf(strings[1]) == 0) {
                     params.add(p);
@@ -635,6 +735,31 @@ public class AuctionHouseCommand implements CommandExecutor, TabCompleter {
             }
         }
         return params;
+    }
+
+    private static String formatBlacklistKey(Object keyObj) {
+        if (keyObj == null) {
+            return "null";
+        }
+        if (keyObj instanceof ItemStack itemStack) {
+            try {
+                String type = itemStack.getType().name();
+                int amount = itemStack.getAmount();
+                ItemMeta meta = itemStack.getItemMeta();
+                if (meta != null) {
+                    if (meta.hasDisplayName()) {
+                        return type + " x" + amount + " (" + ChatColor.stripColor(meta.getDisplayName()) + ")";
+                    }
+                    if (meta.hasItemName()) {
+                        return type + " x" + amount + " (" + ChatColor.stripColor(meta.getItemName()) + ")";
+                    }
+                }
+                return type + " x" + amount;
+            } catch (Exception ignored) {
+                return "ItemStack";
+            }
+        }
+        return keyObj.toString();
     }
 
     private static void reload() {
