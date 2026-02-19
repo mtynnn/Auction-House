@@ -1,5 +1,5 @@
 name: Auction-House
-version: '1.4.3'
+version: '${version}'
 main: me.elaineqheart.auctionHouse.AuctionHouse
 api-version: '1.21'
 folia-supported: false

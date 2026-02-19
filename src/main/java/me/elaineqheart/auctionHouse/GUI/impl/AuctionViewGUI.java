@@ -42,12 +42,23 @@ public class AuctionViewGUI extends InventoryGUI implements Runnable {
 
     @Override
     public void run() {
-        decorate(c.getPlayer());
+        Player player = c.getPlayer();
+        if (player == null || !player.isOnline()) {
+            TaskManager.cancelTask(invID);
+            return;
+        }
+        decorate(player);
     }
 
     public void update() {
         TaskManager.cancelTask(invID);
-        Bukkit.getScheduler().runTask(AuctionHouse.getPlugin(), () -> decorate(c.getPlayer()));
+        Bukkit.getScheduler().runTask(AuctionHouse.getPlugin(), () -> {
+            Player player = c.getPlayer();
+            if (player == null || !player.isOnline()) {
+                return;
+            }
+            decorate(player);
+        });
         invID = UUID.randomUUID();
         TaskManager.addTaskID(invID,
                 Bukkit.getScheduler().runTaskTimer(AuctionHouse.getPlugin(), this, 20, 20).getTaskId());
@@ -75,6 +86,9 @@ public class AuctionViewGUI extends InventoryGUI implements Runnable {
 
     @Override
     public void decorate(Player player) {
+        if (player == null) {
+            return;
+        }
         topBid = Objects.equals(note.getLastBidder(), player.getUniqueId());
         double newBid = note.hasBidHistory() ? Bid.nextMinBid(note.getPrice()) : note.getPrice();
         if (this.bid < newBid)
@@ -162,7 +176,7 @@ public class AuctionViewGUI extends InventoryGUI implements Runnable {
     @Override
     public void onClose(InventoryCloseEvent event) {
         TaskManager.cancelTask(invID);
-        currentGUIs.remove(c.getPlayer());
+        currentGUIs.remove((Player) event.getPlayer());
     }
 
     private InventoryButton buyingItem() {
@@ -412,15 +426,14 @@ public class AuctionViewGUI extends InventoryGUI implements Runnable {
                         Sounds.villagerDeny(event);
                         return;
                     }
-                    if (note.hasBidHistory()) {
-                        p.sendMessage(M.getFormatted("chat.already-sold3"));
+                    boolean success = AuctionManager.getInstance().cancelAuctionAndReturnItem(p, note);
+                    if (!success) {
+                        p.sendMessage(M.getFormatted("chat.already-sold2"));
                         Sounds.villagerDeny(event);
                         return;
                     }
                     Sounds.experience(event);
                     Sounds.breakWood(event);
-                    p.getInventory().addItem(note.getItem());
-                    AuctionManager.getInstance().deleteAuction(note);
                     openGUI(p);
                     p.sendMessage(M.getFormatted("chat.auction-canceled"));
                 });

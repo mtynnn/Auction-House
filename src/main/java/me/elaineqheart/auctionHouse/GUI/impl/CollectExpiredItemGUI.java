@@ -39,8 +39,13 @@ public class CollectExpiredItemGUI extends InventoryGUI implements Runnable {
 
     @Override
     public void run() {
+        Player player = c.getPlayer();
+        if (player == null || !player.isOnline()) {
+            TaskManager.cancelTask(invID);
+            return;
+        }
         this.addButton(SlotConfigManager.getSlot(GUI_NAME, "item-display"), Item());
-        super.decorate(c.getPlayer());
+        super.decorate(player);
     }
 
     public CollectExpiredItemGUI(AuctionItem note, UserSession configuration) {
@@ -137,9 +142,14 @@ public class CollectExpiredItemGUI extends InventoryGUI implements Runnable {
                         Sounds.villagerDeny(event);
                         return;
                     }
+                    boolean success = AuctionManager.getInstance().claimExpiredItem(p, note);
+                    if (!success) {
+                        Sounds.villagerDeny(event);
+                        p.sendMessage(M.getFormatted("chat.non-existent2"));
+                        return;
+                    }
                     Sounds.experience(event);
-                    p.getInventory().addItem(note.getItem());
-                    AuctionManager.getInstance().deleteAuction(note);
+                    p.sendMessage(M.getFormatted("chat.claimed-item", "%item%", note.getItemName()));
                     AuctionHouse.getGuiManager().openGUI(new MyAuctionsGUI(c), p);
                 });
     }

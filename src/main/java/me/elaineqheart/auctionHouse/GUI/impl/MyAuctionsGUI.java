@@ -37,7 +37,12 @@ public class MyAuctionsGUI extends InventoryGUI implements Runnable {
 
     @Override
     public void run() {
-        decorate(c.getPlayer());
+        Player player = c.getPlayer();
+        if (player == null || !player.isOnline()) {
+            TaskManager.cancelTask(invID);
+            return;
+        }
+        decorate(player);
     }
 
     public enum MySort {
@@ -83,7 +88,12 @@ public class MyAuctionsGUI extends InventoryGUI implements Runnable {
     }
 
     private void update() {
-        decorate(c.getPlayer());
+        Player player = c.getPlayer();
+        if (player == null || !player.isOnline()) {
+            TaskManager.cancelTask(invID);
+            return;
+        }
+        decorate(player);
         TaskManager.cancelTask(invID);
         invID = UUID.randomUUID();
         TaskManager.addTaskID(invID,

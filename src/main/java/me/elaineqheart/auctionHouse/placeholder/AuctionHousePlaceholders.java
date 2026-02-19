@@ -41,7 +41,7 @@ public class AuctionHousePlaceholders extends PlaceholderExpansion {
 
     @Override
     public @NotNull String getAuthor() {
-        return plugin.getDescription().getAuthors().toString();
+        return String.join(", ", plugin.getDescription().getAuthors());
     }
 
     @Override
@@ -56,6 +56,15 @@ public class AuctionHousePlaceholders extends PlaceholderExpansion {
 
     @Override
     public @Nullable String onRequest(OfflinePlayer offlinePlayer, @NotNull String params) {
+        return handleRequest(offlinePlayer, params);
+    }
+
+    @Override
+    public @Nullable String onPlaceholderRequest(Player player, @NotNull String params) {
+        return handleRequest(player, params);
+    }
+
+    private @Nullable String handleRequest(OfflinePlayer offlinePlayer, @NotNull String params) {
         // Placeholders que no requieren que el jugador esté online
         switch (params.toLowerCase()) {
             case "total_auctions":

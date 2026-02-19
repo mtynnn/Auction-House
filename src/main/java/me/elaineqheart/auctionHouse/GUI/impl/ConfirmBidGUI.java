@@ -97,27 +97,27 @@ public class ConfirmBidGUI extends InventoryGUI {
                 .consumer(event -> {
                     Player p = (Player) event.getWhoClicked();
 
-                    AuctionItem test = AuctionManager.getInstance().getAuction(note.getNoteID());
-                    if (test == null) {
+                    AuctionItem liveNote = AuctionManager.getInstance().getAuction(note.getNoteID());
+                    if (liveNote == null) {
                         p.sendMessage(M.getFormatted("chat.non-existent2"));
                         Sounds.villagerDeny(event);
                         return;
                     }
-                    if (!test.isOnAuction()) {
+                    if (!liveNote.isOnAuction()) {
                         p.sendMessage(M.getFormatted("chat.already-sold2"));
                         Sounds.villagerDeny(event);
                         return;
                     }
-                    if (test.isExpired()) {
+                    if (liveNote.isExpired()) {
                         event.getWhoClicked().sendMessage(M.getFormatted("chat.expired"));
                         return;
                     }
-                    if ((note.hasBidHistory() ? Bid.nextMinBid(note.getPrice()) : note.getPrice()) > price) {
+                    if ((liveNote.hasBidHistory() ? Bid.nextMinBid(liveNote.getPrice()) : liveNote.getPrice()) > price) {
                         p.sendMessage(M.getFormatted("chat.already-sold3"));
                         Sounds.villagerDeny(event);
                         return;
                     }
-                    double increase = price - note.getBid(p);
+                    double increase = price - liveNote.getBid(p);
                     Economy eco = VaultHook.getEconomy();
                     if (eco.getBalance(p) < increase) {
                         p.sendMessage(M.getFormatted("chat.not-enough-money"));
@@ -126,38 +126,38 @@ public class ConfirmBidGUI extends InventoryGUI {
                     }
                     eco.withdrawPlayer(p, increase);
                     Sounds.experience(event);
-                    AuctionManager.getInstance().addBid(note, p, price);
+                    AuctionManager.getInstance().addBid(liveNote, p, price);
                     p.sendMessage(M.getFormatted("chat.placed-bid",
                             "%price%", String.format("%.2f", price),
-                            "%item%", note.getItemName()));
+                            "%item%", liveNote.getItemName()));
                     if (c.shouldKeepOpen())
                         AuctionHouse.getGuiManager().openGUI(
-                                new AuctionViewGUI(note, c, 0, goBackToAuctionHouse ? UserSession.View.AUCTION_HOUSE
+                                new AuctionViewGUI(liveNote, c, 0, goBackToAuctionHouse ? UserSession.View.AUCTION_HOUSE
                                         : UserSession.View.MY_AUCTIONS),
                                 p);
                     else
                         Bukkit.getScheduler().runTask(AuctionHouse.getPlugin(), p::closeInventory);
 
-                    Set<UUID> bidders = note.getBidders();
+                    Set<UUID> bidders = liveNote.getBidders();
                     bidders.remove(p.getUniqueId());
                     for (UUID id : bidders) {
                         Player bidder = Bukkit.getPlayer(id);
                         if (bidder == null)
                             continue;
-                        double difference = price - note.getBid(bidder);
+                        double difference = price - liveNote.getBid(bidder);
                         bidder.sendMessage(M.getFormatted("chat.outbid.prefix",
                                 "%price%", String.format("%.2f", difference),
                                 "%player%", StringUtils.escapeMiniMessage(p.getDisplayName()),
-                                "%item%", note.getItemName()));
+                                "%item%", liveNote.getItemName()));
                         TextComponent click = new TextComponent(M.getFormatted("chat.outbid.interaction"));
                         click.setClickEvent(new ClickEvent(ClickEvent.Action.RUN_COMMAND,
-                                "/ah view " + note.getNoteID().toString()));
+                                "/ah view " + liveNote.getNoteID().toString()));
                         bidder.spigot().sendMessage(click);
                         if (AuctionViewGUI.currentGUIs.get(bidder) == null)
                             continue;
                         AuctionViewGUI.currentGUIs.get(bidder).update();
                     }
-                    Player itemOwner = Bukkit.getPlayer(note.getPlayerUUID());
+                    Player itemOwner = Bukkit.getPlayer(liveNote.getPlayerUUID());
                     if (itemOwner != null && AuctionViewGUI.currentGUIs.get(itemOwner) != null)
                         AuctionViewGUI.currentGUIs.get(itemOwner).update();
                 });

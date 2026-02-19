@@ -35,8 +35,13 @@ public class EndedAuctionGUI extends InventoryGUI implements Runnable {
 
     @Override
     public void run() {
+        Player player = c.getPlayer();
+        if (player == null || !player.isOnline()) {
+            TaskManager.cancelTask(invID);
+            return;
+        }
         this.addButton(SlotConfigManager.getSlot(GUI_NAME, "item-display"), Item());
-        super.decorate(c.getPlayer());
+        super.decorate(player);
     }
 
     public EndedAuctionGUI(AuctionItem note, UserSession configuration, UserSession.View previousView) {
@@ -171,15 +176,26 @@ public class EndedAuctionGUI extends InventoryGUI implements Runnable {
                     }
 
                     if (AuctionManager.getInstance().canCollectBid(note, player.getUniqueId())) {
+                        boolean success;
                         if (finalIsWinner) {
-                            AuctionManager.getInstance().claimWonItem(player, note);
-                            player.sendMessage(M.getFormatted("chat.claimed-item"));
+                            success = AuctionManager.getInstance().claimWonItem(player, note);
+                            if (success) {
+                                player.sendMessage(M.getFormatted("chat.claimed-item"));
+                            }
                         } else {
-                            AuctionManager.getInstance().claimBidMoney(player, note);
-                            player.sendMessage(M.getFormatted("chat.claimed-money"));
+                            success = AuctionManager.getInstance().claimBidMoney(player, note);
+                            if (success) {
+                                player.sendMessage(M.getFormatted("chat.claimed-money"));
+                            }
                         }
-                        Sounds.experience(event);
-                        openGUI(player);
+
+                        if (success) {
+                            Sounds.experience(event);
+                            openGUI(player);
+                        } else {
+                            player.sendMessage(M.getFormatted("chat.already-claimed"));
+                            Sounds.villagerDeny(event);
+                        }
                     } else {
                         player.sendMessage(M.getFormatted("chat.already-claimed"));
                         Sounds.villagerDeny(event);

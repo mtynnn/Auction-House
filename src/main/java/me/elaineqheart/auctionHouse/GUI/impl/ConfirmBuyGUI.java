@@ -15,18 +15,11 @@ import me.elaineqheart.auctionHouse.model.UserSession;
 import me.elaineqheart.auctionHouse.manager.ItemManager;
 import me.elaineqheart.auctionHouse.model.AuctionItem;
 import me.elaineqheart.auctionHouse.util.StringUtils;
-import me.elaineqheart.auctionHouse.vault.VaultHook;
-import net.md_5.bungee.api.chat.ClickEvent;
-import net.md_5.bungee.api.chat.TextComponent;
-import net.milkbowl.vault.economy.Economy;
 import org.bukkit.Bukkit;
-import org.bukkit.OfflinePlayer;
 import org.bukkit.entity.Player;
 import org.bukkit.inventory.Inventory;
 import org.bukkit.inventory.ItemStack;
 import org.bukkit.inventory.meta.ItemMeta;
-
-import java.io.IOException;
 
 public class ConfirmBuyGUI extends InventoryGUI {
 
@@ -42,7 +35,9 @@ public class ConfirmBuyGUI extends InventoryGUI {
         this.note = note;
         this.item = item;
         c = configuration;
-        price = note.getPrice() / note.getItem().getAmount() * item.getAmount();
+        ItemStack noteItem = note.getItem();
+        int baseAmount = (noteItem == null || noteItem.getAmount() <= 0) ? Math.max(1, item.getAmount()) : noteItem.getAmount();
+        price = note.getPrice() / baseAmount * item.getAmount();
     }
 
     @Override
@@ -107,45 +102,52 @@ public class ConfirmBuyGUI extends InventoryGUI {
                     }
                     String itemName = note.getItemName();
 
-                    AuctionItem test = AuctionManager.getInstance().getAuction(note.getNoteID());
-                    if (test == null) {
-                        p.sendMessage(M.getFormatted("chat.non-existent2"));
-                        Sounds.villagerDeny(event);
-                        return;
-                    }
-                    if (!test.isOnAuction() || test.getCurrentAmount() < item.getAmount()) {
-                        p.sendMessage(M.getFormatted("chat.already-sold2"));
-                        Sounds.villagerDeny(event);
-                        return;
-                    }
-                    Economy eco = VaultHook.getEconomy();
-                    if (eco.getBalance(p) < price) {
-                        p.sendMessage(M.getFormatted("chat.not-enough-money"));
-                        Sounds.villagerDeny(event);
-                        return;
-                    }
-                    eco.withdrawPlayer(p, price);
-                    Sounds.experience(event);
-                    p.getInventory().addItem(item);
-                    note.setSold(true);
-                    note.setBuyerName(p.getDisplayName());
-                    if (price != note.getPrice()) {
-                        if (note.getPartiallySoldAmountLeft() == 0) {
-                            note.setPartiallySoldAmountLeft(note.getItem().getAmount() - item.getAmount());
-                        } else {
-                            note.setPartiallySoldAmountLeft(note.getPartiallySoldAmountLeft() - item.getAmount());
+                    AuctionManager.PurchaseResult result = AuctionManager.getInstance()
+                            .purchaseBin(p, note, item.getAmount());
+                    AuctionItem liveNote = result.getNote();
+
+                    switch (result.getStatus()) {
+                        case NOT_FOUND -> {
+                            p.sendMessage(M.getFormatted("chat.non-existent2"));
+                            Sounds.villagerDeny(event);
+                            return;
+                        }
+                        case OWN_AUCTION -> {
+                            p.sendMessage(M.getFormatted("chat.own-auction"));
+                            Sounds.villagerDeny(event);
+                            return;
+                        }
+                        case INSUFFICIENT_FUNDS -> {
+                            p.sendMessage(M.getFormatted("chat.not-enough-money"));
+                            Sounds.villagerDeny(event);
+                            return;
+                        }
+                        case NOT_AVAILABLE -> {
+                            p.sendMessage(M.getFormatted("chat.already-sold2"));
+                            Sounds.villagerDeny(event);
+                            return;
+                        }
+                        case CORRUPTED_ITEM, INVALID_AMOUNT -> {
+                            p.sendMessage(M.getFormatted("chat.error-occurred"));
+                            Sounds.villagerDeny(event);
+                            return;
+                        }
+                        case SUCCESS -> {
                         }
                     }
-                    AuctionManager.getInstance().updateAuction(note);
+
+                    Sounds.experience(event);
+                    ItemStack tracedItem = ItemManager.stampAuctionPurchase(result.getBoughtItem(), liveNote, p);
+                    p.getInventory().addItem(tracedItem);
                     p.sendMessage(M.getFormatted("chat.purchase-auction",
-                            "%player%", StringUtils.escapeMiniMessage(note.getPlayerName()),
-                            "%item%", note.getItemName(),
-                            "%price%", StringUtils.formatPrice(price)));
-                    Player seller = Bukkit.getPlayer(note.getPlayerUUID());
+                            "%player%", StringUtils.escapeMiniMessage(liveNote.getPlayerName()),
+                            "%item%", liveNote.getItemName(),
+                            "%price%", StringUtils.formatPrice(result.getPricePaid())));
+                    Player seller = Bukkit.getPlayer(liveNote.getPlayerUUID());
                     if (SettingManager.soldMessageEnabled && seller != null
                             && seller.isOnline()) {
                         if (SettingManager.autoCollect) {
-                            seller.sendMessage(M.getFormatted("chat.sold-message.auto-collect", price,
+                            seller.sendMessage(M.getFormatted("chat.sold-message.auto-collect", result.getPricePaid(),
                                     "%player%", StringUtils.escapeMiniMessage(p.getDisplayName()),
                                     "%item%", itemName,
                                     "%amount%", String.valueOf(item.getAmount())));
@@ -154,19 +156,18 @@ public class ConfirmBuyGUI extends InventoryGUI {
                         }
                     }
                     if (SettingManager.autoCollect
-                            && Bukkit.getOnlinePlayers().contains(Bukkit.getPlayer(note.getPlayerUUID()))) {
-                        Bukkit.getScheduler().runTaskAsynchronously(AuctionHouse.getPlugin(),
-                                () -> AuctionManager.getInstance().claimSoldItemMoney(
-                                        Bukkit.getOfflinePlayer(note.getPlayerUUID()),
-                                        note));
+                            && Bukkit.getOnlinePlayers().contains(Bukkit.getPlayer(liveNote.getPlayerUUID()))) {
+                        AuctionManager.getInstance().claimSoldItemMoney(
+                                Bukkit.getOfflinePlayer(liveNote.getPlayerUUID()),
+                                liveNote);
                     }
                     ConfigManager.transactionLogger.logTransaction(
                             p.getUniqueId(),
-                            note.getPlayerUUID(),
+                            liveNote.getPlayerUUID(),
                             item.getType().name(),
-                            price,
+                            result.getPricePaid(),
                             item.getAmount(),
-                            !note.isBIDAuction());
+                            !liveNote.isBIDAuction());
 
                     // Keep AH flow continuous after buying.
                     Bukkit.getScheduler().runTask(AuctionHouse.getPlugin(),

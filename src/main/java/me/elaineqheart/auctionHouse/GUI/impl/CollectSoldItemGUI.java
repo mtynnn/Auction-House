@@ -36,8 +36,13 @@ public class CollectSoldItemGUI extends InventoryGUI implements Runnable {
 
     @Override
     public void run() {
+        Player player = c.getPlayer();
+        if (player == null || !player.isOnline()) {
+            TaskManager.cancelTask(invID);
+            return;
+        }
         this.addButton(SlotConfigManager.getSlot(GUI_NAME, "item-display"), Item());
-        super.decorate(c.getPlayer());
+        super.decorate(player);
     }
 
     public CollectSoldItemGUI(AuctionItem note, UserSession configuration) {
@@ -159,5 +164,10 @@ public class CollectSoldItemGUI extends InventoryGUI implements Runnable {
 
     private static double getProfit(double price) {
         return price; // No tax applied
+    }
+
+    @Override
+    public void onClose(InventoryCloseEvent event) {
+        TaskManager.cancelTask(invID);
     }
 }

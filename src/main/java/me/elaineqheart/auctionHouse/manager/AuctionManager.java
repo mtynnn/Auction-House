@@ -37,6 +37,7 @@ public class AuctionManager {
     private final Map<UUID, List<UUID>> sortedPlayers = new ConcurrentHashMap<>(); // itemNote : players
     private final Map<UUID, AuctionItem> notes = new ConcurrentHashMap<>();
     private final Map<List<Map<String, Object>>, List<UUID>> categories = new ConcurrentHashMap<>();
+    private final Map<UUID, Object> auctionLocks = new ConcurrentHashMap<>();
 
     private AuctionManager() {
         this.dao = new AuctionDAO(AuctionHouse.getPlugin().getDatabaseManager());
@@ -72,6 +73,9 @@ public class AuctionManager {
     }
 
     public void deleteAuction(AuctionItem item) {
+        if (item != null) {
+            ItemManager.invalidateCache(item.getNoteID());
+        }
         remove(item);
         dao.delete(item);
         if (item != null) {
@@ -82,11 +86,15 @@ public class AuctionManager {
     public void updateAuction(AuctionItem item) {
         // Any setter on AuctionItem should be followed by this or explicit DAO save
         // But since we are moving logic here, we can expose specific update methods
+        if (item != null) {
+            ItemManager.invalidateCache(item.getNoteID());
+        }
         dao.save(item);
     }
 
     public void addBid(AuctionItem item, Player player, double amount) {
         item.addBid(player, amount);
+        ItemManager.invalidateCache(item.getNoteID());
         // Update RAM cache for bids
         addBidToCache(player.getUniqueId(), item.getNoteID());
         dao.save(item);
@@ -95,6 +103,7 @@ public class AuctionManager {
 
     public void removeBid(Player player, AuctionItem item) {
         item.removeBid(player);
+        ItemManager.invalidateCache(item.getNoteID());
         removeBidFromCache(player.getUniqueId(), item.getNoteID());
         dao.save(item);
         Debug.log("Bid removed auction=" + item.getNoteID() + " bidder=" + player.getName());
@@ -124,6 +133,10 @@ public class AuctionManager {
     public void purge() {
         clear();
         dao.purge();
+    }
+
+    public void flushToDatabaseSync() {
+        dao.saveSnapshotSync(getAll());
     }
 
     // --- RAM Cache Management (formerly AuctionHouseStorage) ---
@@ -170,22 +183,26 @@ public class AuctionManager {
     // --- Private Helper Methods ---
 
     private void addToLists(AuctionItem note) {
-        notes.put(note.getNoteID(), note);
-        itemNotes.add(note.getNoteID());
+        UUID noteId = note.getNoteID();
+
+        // Avoid duplicate UUIDs in RAM lists when lag/reload races happen.
+        removeUuidEverywhere(noteId);
+        notes.put(noteId, note);
+        itemNotes.add(noteId);
 
         boolean onAuction = note.isOnAuction();
         boolean isExpired = note.isExpired();
         boolean hasAdminMsg = note.getAdminMessage() != null && !note.getAdminMessage().isEmpty();
 
         if (onAuction && !isExpired && !hasAdminMsg) {
-            sortedHighestPrice.add(note.getNoteID());
-            sortedTimeLeft.add(note.getNoteID());
-            sortedAlphabetical.add(note.getNoteID());
-            sortedRecentlyPosted.add(note.getNoteID());
+            sortedHighestPrice.add(noteId);
+            sortedTimeLeft.add(noteId);
+            sortedAlphabetical.add(noteId);
+            sortedRecentlyPosted.add(noteId);
             categories.forEach((maps, uuids) -> {
                 ItemStack item = note.getItem();
                 if (item != null && !Blacklist.isBlacklisted(item, maps))
-                    uuids.add(note.getNoteID());
+                    uuids.add(noteId);
             });
         }
     }
@@ -206,7 +223,156 @@ public class AuctionManager {
         sortedHighestPrice.clear();
         sortedTimeLeft.clear();
         sortedAlphabetical.clear();
+        sortedRecentlyPosted.clear();
+        sortedBids.clear();
+        sortedPlayers.clear();
         categories.clear();
+        auctionLocks.clear();
+        ItemManager.clearCache();
+    }
+
+    private Object lockFor(UUID noteID) {
+        return auctionLocks.computeIfAbsent(noteID, ignored -> new Object());
+    }
+
+    public enum PurchaseStatus {
+        SUCCESS,
+        NOT_FOUND,
+        NOT_AVAILABLE,
+        OWN_AUCTION,
+        INSUFFICIENT_FUNDS,
+        INVALID_AMOUNT,
+        CORRUPTED_ITEM
+    }
+
+    public static class PurchaseResult {
+        private final PurchaseStatus status;
+        private final AuctionItem note;
+        private final ItemStack boughtItem;
+        private final double pricePaid;
+
+        public PurchaseResult(PurchaseStatus status, AuctionItem note, ItemStack boughtItem, double pricePaid) {
+            this.status = status;
+            this.note = note;
+            this.boughtItem = boughtItem;
+            this.pricePaid = pricePaid;
+        }
+
+        public PurchaseStatus getStatus() {
+            return status;
+        }
+
+        public AuctionItem getNote() {
+            return note;
+        }
+
+        public ItemStack getBoughtItem() {
+            return boughtItem;
+        }
+
+        public double getPricePaid() {
+            return pricePaid;
+        }
+    }
+
+    public PurchaseResult purchaseBin(Player buyer, AuctionItem note, int amount) {
+        if (buyer == null || note == null || amount <= 0) {
+            return new PurchaseResult(PurchaseStatus.INVALID_AMOUNT, null, null, 0.0);
+        }
+
+        UUID noteID = note.getNoteID();
+        synchronized (lockFor(noteID)) {
+            AuctionItem liveNote = getAuction(noteID);
+            if (liveNote == null) {
+                return new PurchaseResult(PurchaseStatus.NOT_FOUND, null, null, 0.0);
+            }
+            if (!liveNote.isOnAuction() || liveNote.isExpired() || liveNote.isBIDAuction()) {
+                return new PurchaseResult(PurchaseStatus.NOT_AVAILABLE, liveNote, null, 0.0);
+            }
+            if (Objects.equals(liveNote.getPlayerUUID(), buyer.getUniqueId())) {
+                return new PurchaseResult(PurchaseStatus.OWN_AUCTION, liveNote, null, 0.0);
+            }
+
+            ItemStack baseItem = liveNote.getItem();
+            if (baseItem == null || baseItem.getAmount() <= 0) {
+                return new PurchaseResult(PurchaseStatus.CORRUPTED_ITEM, liveNote, null, 0.0);
+            }
+
+            int currentAmount = liveNote.getCurrentAmount();
+            if (amount > currentAmount) {
+                return new PurchaseResult(PurchaseStatus.NOT_AVAILABLE, liveNote, null, 0.0);
+            }
+
+            double unitPrice = liveNote.getPrice() / baseItem.getAmount();
+            double price = unitPrice * amount;
+
+            Economy eco = VaultHook.getEconomy();
+            if (eco.getBalance(buyer) < price) {
+                return new PurchaseResult(PurchaseStatus.INSUFFICIENT_FUNDS, liveNote, null, price);
+            }
+
+            eco.withdrawPlayer(buyer, price);
+
+            ItemStack boughtItem = baseItem.clone();
+            boughtItem.setAmount(amount);
+
+            liveNote.setSold(true);
+            liveNote.setBuyerName(buyer.getDisplayName());
+            if (price != liveNote.getPrice()) {
+                if (liveNote.getPartiallySoldAmountLeft() == 0) {
+                    liveNote.setPartiallySoldAmountLeft(baseItem.getAmount() - amount);
+                } else {
+                    liveNote.setPartiallySoldAmountLeft(liveNote.getPartiallySoldAmountLeft() - amount);
+                }
+                if (liveNote.getPartiallySoldAmountLeft() < 0) {
+                    liveNote.setPartiallySoldAmountLeft(0);
+                }
+            }
+            dao.save(liveNote);
+
+            return new PurchaseResult(PurchaseStatus.SUCCESS, liveNote, boughtItem, price);
+        }
+    }
+
+    public boolean cancelAuctionAndReturnItem(Player player, AuctionItem note) {
+        if (player == null || note == null) {
+            return false;
+        }
+
+        UUID noteID = note.getNoteID();
+        synchronized (lockFor(noteID)) {
+            AuctionItem liveNote = getAuction(noteID);
+            if (liveNote == null) {
+                return false;
+            }
+            if (!Objects.equals(liveNote.getPlayerUUID(), player.getUniqueId())) {
+                return false;
+            }
+            if (!liveNote.isOnAuction() || liveNote.isExpired()) {
+                return false;
+            }
+            if (liveNote.isBIDAuction() && liveNote.hasBidHistory()) {
+                return false;
+            }
+
+            ItemStack item = liveNote.getItem();
+            if (item == null || player.getInventory().firstEmpty() == -1) {
+                return false;
+            }
+
+            player.getInventory().addItem(item.clone());
+            deleteAuction(liveNote);
+            return true;
+        }
+    }
+
+    private void removeUuidEverywhere(UUID noteID) {
+        itemNotes.removeIf(uuid -> uuid.equals(noteID));
+        sortedHighestPrice.removeIf(uuid -> uuid.equals(noteID));
+        sortedTimeLeft.removeIf(uuid -> uuid.equals(noteID));
+        sortedAlphabetical.removeIf(uuid -> uuid.equals(noteID));
+        sortedRecentlyPosted.removeIf(uuid -> uuid.equals(noteID));
+        categories.forEach((maps, uuids) -> uuids.removeIf(uuid -> uuid.equals(noteID)));
     }
 
     private void updateSortedLists() {
@@ -285,14 +451,20 @@ public class AuctionManager {
     }
 
     public List<AuctionItem> getSortedList(SortMode mode, UserSession c) {
-        String search = c.getCurrentSearch().toLowerCase();
-        List<UUID> list = new ArrayList<>();
+        String search = c != null ? c.getCurrentSearch().toLowerCase() : "";
+        Player sessionPlayer = c != null ? c.getPlayer() : null;
+        List<UUID> list;
         switch (mode) {
-            case RECENTLY_POSTED -> list = sortedRecentlyPosted;
-            case DATE -> list = sortedTimeLeft;
-            case NAME -> list = sortedAlphabetical;
-            case PRICE_ASC -> list = sortedHighestPrice;
-            case PRICE_DESC -> list = sortedHighestPrice.reversed();
+            case RECENTLY_POSTED -> list = snapshotOf(sortedRecentlyPosted);
+            case DATE -> list = snapshotOf(sortedTimeLeft);
+            case NAME -> list = snapshotOf(sortedAlphabetical);
+            case PRICE_ASC -> list = snapshotOf(sortedHighestPrice);
+            case PRICE_DESC -> {
+                List<UUID> desc = snapshotOf(sortedHighestPrice);
+                Collections.reverse(desc);
+                list = desc;
+            }
+            default -> list = List.of();
         }
 
         List<AuctionItem> result = new ArrayList<>();
@@ -322,13 +494,15 @@ public class AuctionManager {
             }
 
             // Search filter
-            if (!search.isEmpty() && !note.getSearchIndex(c.getPlayer()).contains(search)) {
-                filteredOut_search++;
-                continue;
+            if (!search.isEmpty()) {
+                if (sessionPlayer == null || !note.getSearchIndex(sessionPlayer).contains(search)) {
+                    filteredOut_search++;
+                    continue;
+                }
             }
 
             // BIN filter
-            switch (c.getBinFilter()) {
+            switch (c != null ? c.getBinFilter() : UserSession.BINFilter.ALL) {
                 case AUCTIONS_ONLY:
                     if (!note.isBIDAuction()) {
                         filteredOut_bin++;
@@ -349,8 +523,8 @@ public class AuctionManager {
             result.add(note);
         }
 
-        if (Debug.isEnabled() && result.isEmpty() && c != null && c.getPlayer() != null) {
-            Debug.log("AH list empty for " + c.getPlayer().getName()
+        if (Debug.isEnabled() && result.isEmpty() && c != null && sessionPlayer != null) {
+            Debug.log("AH list empty for " + sessionPlayer.getName()
                     + " search=\"" + c.getCurrentSearch() + "\" binFilter=" + c.getBinFilter()
                     + " filtered(notOnAuction/expired)=" + filteredOut_notOnAuctionOrExpired
                     + " waiting=" + filteredOut_waitingList
@@ -359,6 +533,12 @@ public class AuctionManager {
                     + " bin=" + filteredOut_bin);
         }
         return result;
+    }
+
+    private List<UUID> snapshotOf(List<UUID> source) {
+        synchronized (source) {
+            return new ArrayList<>(source);
+        }
     }
 
     public void applyWhitelist(List<AuctionItem> notes, List<Map<?, ?>> whitelist) {
@@ -399,63 +579,52 @@ public class AuctionManager {
     }
 
     public boolean claimSoldItemMoney(OfflinePlayer p, AuctionItem note) {
-        if (note == null)
-            return false;
-        double price = note.getSoldPrice();
-        if (note.isBIDAuction() && note.isSold())
+        if (note == null || p == null || p.getUniqueId() == null)
             return false;
 
-        Economy eco = VaultHook.getEconomy();
-        double profit = price; // No tax applied
-        eco.depositPlayer(p, profit);
+        UUID noteID = note.getNoteID();
+        synchronized (lockFor(noteID)) {
+            // Resolve against current manager state to avoid stale GUI references.
+            AuctionItem liveNote = getAuction(noteID);
+            if (liveNote == null)
+                return false;
+            if (!Objects.equals(liveNote.getPlayerUUID(), p.getUniqueId()))
+                return false;
 
-        if (note.getPartiallySoldAmountLeft() != 0) {
-            note.setPrice(note.getPrice() - price);
-            // ItemStack temp = note.getItem().clone();
-            // Calculate amount to remove based on price ratio or strict amount logic?
-            // usage in GUI was: note.getItem().getAmount() - itemAmount
-            // where itemAmount was item.getAmount() from GUI creation
-            // We need to know how much was sold.
-            // The GUI creates a 'collecting item' which represents the sold amount.
-            // But here we only have the note.
-            // The note contains 'partiallySoldAmountLeft'.
-            // If getPartiallySoldAmountLeft is set, it means some amount IS left.
-            // So we can deduct the *sold* amount from the *total* amount?
-            // Wait, logic in GUI:
-            // ItemStack temp = note.getItem().clone();
-            // temp.setAmount(note.getItem().getAmount() - itemAmount);
-            // ItemNoteStorage.setItem(note, temp);
-            // Here 'itemAmount' is strictly what is being claimed NOW.
+            double price = liveNote.getSoldPrice();
+            if (liveNote.isBIDAuction() && liveNote.isSold())
+                return false;
 
-            // To support this in Manager, we might need to pass the amount being claimed?
-            // BUT, strictly speaking, 'claimSoldItemMoney' implies claiming ALL available
-            // money for this note?
-            // In the GUI, 'item' is created via
-            // `ItemManager.createCollectingItemFromNote(note)`.
-            // Let's look at `ItemManager.createCollectingItemFromNote`.
-            // It probably sets the amount to the sold amount.
+            Economy eco = VaultHook.getEconomy();
+            double profit = price; // No tax applied
+            eco.depositPlayer(p, profit);
 
-            // For now, let's assume we implement the logic verifying against the note
-            // state.
-            // The GUI passes 'item.getAmount()'.
-            // Let's assume for now we just handle the money and state update.
-            // But we need to know the amount to remove from the item stack.
-            // note.getItem() is the remaining item stack on sale.
-            // If partially sold, we reduce it.
+            if (liveNote.getPartiallySoldAmountLeft() != 0) {
+                // Convert listing to the remaining unsold amount to avoid repeated claims.
+                int remainingAmount = liveNote.getPartiallySoldAmountLeft();
+                ItemStack baseItem = liveNote.getItem();
+                if (baseItem == null) {
+                    return false;
+                }
+                ItemStack remaining = baseItem.clone();
+                remaining.setAmount(remainingAmount);
 
-            // Let's simplify and port the logic directly, but we need 'itemAmount'.
-            // Actually, `createCollectingItemFromNote` determines the amount.
-            // Let's just pass `itemAmount` to this method.
-        } else {
-            if (!note.isBIDAuction()) {
-                deleteAuction(note);
+                liveNote.setPrice(liveNote.getCurrentPrice());
+                liveNote.setItem(remaining);
+                liveNote.setPartiallySoldAmountLeft(0);
+                liveNote.setSold(false);
+                dao.save(liveNote);
             } else {
-                note.setSold(true);
-                checkRemove(note.getNoteID());
-                dao.save(note);
+                if (!liveNote.isBIDAuction()) {
+                    deleteAuction(liveNote);
+                } else {
+                    liveNote.setSold(true);
+                    checkRemove(liveNote.getNoteID());
+                    dao.save(liveNote);
+                }
             }
+            return true;
         }
-        return true;
     }
 
     // RETHINK: The GUI logic is complex regarding partial sales.
@@ -466,56 +635,115 @@ public class AuctionManager {
     // I will implement helper for 'claimBid' and 'claimWonItem' as they are
     // simpler.
 
-    public void claimWonItem(Player p, AuctionItem note) {
-        ItemStack item = note.getItem();
-        if (item == null) {
-            p.sendMessage(ChatColor.RED + "Error: This item cannot be loaded (missing plugin dependency). Contact an admin.");
-            return;
+    public boolean claimWonItem(Player p, AuctionItem note) {
+        if (p == null || note == null) {
+            return false;
         }
-        
-        p.getInventory().addItem(item);
-        removeBid(p, note); // This removes the player from bidders list?
-        // In GUI: ItemNoteStorage.removeBid(p, note);
-        // This removes the bid entry for that player?
-        // If I won, I am the top bidder?
-        // ItemNoteStorage.removeBid removes the player from the bid map.
 
-        ConfigManager.transactionLogger.logTransaction(
-                p.getUniqueId(),
-                note.getPlayerUUID(),
-                item.getType().name(),
-                note.getPrice(),
-                item.getAmount(),
-                !note.isBIDAuction());
+        UUID noteID = note.getNoteID();
+        synchronized (lockFor(noteID)) {
+            AuctionItem liveNote = getAuction(noteID);
+            if (liveNote == null || !liveNote.isBIDAuction()) {
+                return false;
+            }
+            if (!liveNote.isExpired()) {
+                return false;
+            }
+            if (!Objects.equals(liveNote.getLastBidder(), p.getUniqueId())) {
+                return false;
+            }
+            if (!canCollectBid(liveNote, p.getUniqueId())) {
+                return false;
+            }
 
-        dao.save(note);
+            ItemStack item = liveNote.getItem();
+            if (item == null) {
+                p.sendMessage(ChatColor.RED + "Error: This item cannot be loaded (missing plugin dependency). Contact an admin.");
+                return false;
+            }
+            if (p.getInventory().firstEmpty() == -1) {
+                return false;
+            }
+
+            ItemStack tracedItem = ItemManager.stampAuctionPurchase(item, liveNote, p);
+            p.getInventory().addItem(tracedItem);
+            removeBid(p, liveNote);
+
+            ConfigManager.transactionLogger.logTransaction(
+                    p.getUniqueId(),
+                    liveNote.getPlayerUUID(),
+                    item.getType().name(),
+                    liveNote.getPrice(),
+                    item.getAmount(),
+                    !liveNote.isBIDAuction());
+
+            dao.save(liveNote);
+            return true;
+        }
     }
 
     public boolean claimExpiredItem(Player p, AuctionItem note) {
-        if (note == null || !note.isExpired())
+        if (note == null || p == null)
             return false;
 
-        ItemStack item = note.getItem();
-        if (item == null) {
-            p.sendMessage(ChatColor.RED + "Error: This item cannot be loaded (missing plugin dependency). Contact an admin.");
-            return false;
+        UUID noteID = note.getNoteID();
+        synchronized (lockFor(noteID)) {
+            // Resolve against live manager state to avoid claiming with stale GUI references.
+            AuctionItem liveNote = getAuction(noteID);
+            if (liveNote == null)
+                return false;
+            if (!Objects.equals(liveNote.getPlayerUUID(), p.getUniqueId()))
+                return false;
+            if (!liveNote.isExpired())
+                return false;
+
+            ItemStack item = liveNote.getItem();
+            if (item == null) {
+                p.sendMessage(ChatColor.RED + "Error: This item cannot be loaded (missing plugin dependency). Contact an admin.");
+                return false;
+            }
+
+            // check if inventory is full
+            if (p.getInventory().firstEmpty() == -1) {
+                return false;
+            }
+
+            p.getInventory().addItem(item.clone());
+            deleteAuction(liveNote);
+            return true;
         }
-
-        // check if inventory is full
-        if (p.getInventory().firstEmpty() == -1) {
-            return false;
-        }
-
-        p.getInventory().addItem(item);
-        deleteAuction(note);
-        return true;
     }
 
-    public void claimBidMoney(Player p, AuctionItem note) {
-        double amount = note.getBid(p);
-        VaultHook.getEconomy().depositPlayer(p, amount);
-        removeBid(p, note);
-        // dao.save(note) is called in removeBid
+    public boolean claimBidMoney(Player p, AuctionItem note) {
+        if (p == null || note == null) {
+            return false;
+        }
+
+        UUID noteID = note.getNoteID();
+        synchronized (lockFor(noteID)) {
+            AuctionItem liveNote = getAuction(noteID);
+            if (liveNote == null || !liveNote.isBIDAuction()) {
+                return false;
+            }
+            if (!liveNote.isExpired()) {
+                return false;
+            }
+            if (Objects.equals(liveNote.getLastBidder(), p.getUniqueId())) {
+                return false;
+            }
+            if (!canCollectBid(liveNote, p.getUniqueId())) {
+                return false;
+            }
+
+            double amount = liveNote.getBid(p);
+            if (amount <= 0) {
+                return false;
+            }
+
+            VaultHook.getEconomy().depositPlayer(p, amount);
+            removeBid(p, liveNote);
+            return true;
+        }
     }
 
     public int getNumberOfAuctions(UUID playerID) {

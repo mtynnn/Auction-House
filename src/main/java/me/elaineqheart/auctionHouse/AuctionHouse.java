@@ -184,7 +184,15 @@ public final class AuctionHouse extends JavaPlugin {
             getLogger().warning("Could not close GUIs: " + e.getMessage());
         }
 
-        // 3. Cancel ALL scheduled tasks (display updater, GUI refresh timers, etc.)
+        // 3. Force a synchronous DB snapshot before killing async tasks.
+        try {
+            AuctionManager.getInstance().flushToDatabaseSync();
+            getLogger().info("[PlugMan-Compatible] Auction snapshot persisted");
+        } catch (Exception e) {
+            getLogger().warning("Could not persist auction snapshot: " + e.getMessage());
+        }
+
+        // 4. Cancel ALL scheduled tasks (display updater, GUI refresh timers, etc.)
         try {
             TaskManager.cancelAll();
             Bukkit.getScheduler().cancelTasks(this);
@@ -193,7 +201,7 @@ public final class AuctionHouse extends JavaPlugin {
             getLogger().warning("Could not cancel tasks: " + e.getMessage());
         }
 
-        // 4. Clear user sessions
+        // 5. Clear user sessions
         try {
             UserSession.clearAll();
             getLogger().info("[PlugMan-Compatible] User sessions cleared");
@@ -201,7 +209,7 @@ public final class AuctionHouse extends JavaPlugin {
             getLogger().warning("Could not clear sessions: " + e.getMessage());
         }
 
-        // 5. Clear display caches
+        // 6. Clear display caches
         try {
             UpdateDisplay.clearAll();
             getLogger().info("[PlugMan-Compatible] Display caches cleared");
@@ -209,7 +217,7 @@ public final class AuctionHouse extends JavaPlugin {
             getLogger().warning("Could not clear displays: " + e.getMessage());
         }
 
-        // 6. Reset AuctionManager singleton (clears all RAM caches)
+        // 7. Reset AuctionManager singleton (clears all RAM caches)
         try {
             AuctionManager.resetInstance();
             getLogger().info("[PlugMan-Compatible] AuctionManager reset");
@@ -217,7 +225,7 @@ public final class AuctionHouse extends JavaPlugin {
             getLogger().warning("Could not reset AuctionManager: " + e.getMessage());
         }
 
-        // 7. Clear configuration caches
+        // 8. Clear configuration caches
         try {
             SlotConfigManager.clearCaches();
             me.elaineqheart.auctionHouse.GUI.config.GuiConfigManager.clearCaches();
@@ -226,7 +234,7 @@ public final class AuctionHouse extends JavaPlugin {
             getLogger().warning("Could not clear config caches: " + e.getMessage());
         }
 
-        // 8. Unregister all event listeners registered by this plugin
+        // 9. Unregister all event listeners registered by this plugin
         try {
             org.bukkit.event.HandlerList.unregisterAll(this);
             getLogger().info("[PlugMan-Compatible] Event handlers unregistered");
@@ -234,7 +242,7 @@ public final class AuctionHouse extends JavaPlugin {
             getLogger().warning("Could not unregister listeners: " + e.getMessage());
         }
 
-        // 9. Close database connection pool (HikariCP)
+        // 10. Close database connection pool (HikariCP)
         try {
             if (databaseManager != null) {
                 databaseManager.close();

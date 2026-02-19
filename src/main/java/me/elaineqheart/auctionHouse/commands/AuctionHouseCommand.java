@@ -17,6 +17,7 @@ import me.elaineqheart.auctionHouse.configuration.M;
 import me.elaineqheart.auctionHouse.model.AuctionItem;
 import me.elaineqheart.auctionHouse.model.UserSession;
 import me.elaineqheart.auctionHouse.manager.AuctionManager;
+import me.elaineqheart.auctionHouse.manager.ItemManager;
 import me.elaineqheart.auctionHouse.world.displays.CreateDisplay;
 import me.elaineqheart.auctionHouse.world.displays.UpdateDisplay;
 import me.elaineqheart.auctionHouse.world.npc.NPCManager;
@@ -30,6 +31,7 @@ import org.bukkit.ChatColor;
 import org.bukkit.Location;
 import org.bukkit.Material;
 import org.bukkit.Sound;
+import org.bukkit.OfflinePlayer;
 import org.bukkit.command.*;
 
 import org.bukkit.entity.Player;
@@ -40,12 +42,26 @@ import org.jetbrains.annotations.Nullable;
 
 import java.util.*;
 import java.util.UUID;
+import java.nio.charset.StandardCharsets;
+import java.security.MessageDigest;
+import java.security.NoSuchAlgorithmException;
 
 // https://github.com/VelixDevelopments/Imperat
 
 // #don't try to fix what's not broken
 
 public class AuctionHouseCommand implements CommandExecutor, TabCompleter {
+
+    private static final Map<UUID, String> pendingLegacyRemovals = new HashMap<>();
+    private static final List<String> KNOWN_DUPE_LORE_TOKENS = List.of(
+            "precio:",
+            "vendedor:",
+            "expira en:",
+            "clic para comprar",
+            "clic para retirar",
+            "clic para previsualizar",
+            "clic para cancelar");
+
     @Override
     public boolean onCommand(@NotNull CommandSender commandSender, @NotNull Command command, @NotNull String s,
             @NotNull String[] strings) {
@@ -302,6 +318,62 @@ public class AuctionHouseCommand implements CommandExecutor, TabCompleter {
                         return true;
                     }
                     p.sendMessage(M.getFormatted("command-feedback.debug-usage"));
+                    return true;
+                }
+                else if (strings.length == 1 && strings[0].equalsIgnoreCase("audit")) {
+                    runAuctionAudit(p);
+                    return true;
+                }
+                else if (strings.length == 1 && strings[0].equalsIgnoreCase("auditlegacy")) {
+                    runLegacyAudit(p);
+                    return true;
+                }
+                else if (strings.length == 1 && strings[0].equalsIgnoreCase("auditdupelore")) {
+                    runKnownDupeLoreAudit(p);
+                    return true;
+                }
+                else if (strings.length >= 2 && strings[0].equalsIgnoreCase("auditlore")) {
+                    String query = String.join(" ", Arrays.copyOfRange(strings, 1, strings.length));
+                    runLoreSearchAudit(p, query);
+                    return true;
+                }
+                else if (strings.length == 2 && strings[0].equalsIgnoreCase("auditfp")) {
+                    runLegacyFingerprintDetail(p, strings[1]);
+                    return true;
+                }
+                else if (strings.length == 1 && strings[0].equalsIgnoreCase("trace")) {
+                    traceItemInHand(p);
+                    return true;
+                }
+                else if (strings.length == 2 && strings[0].equalsIgnoreCase("removeid")) {
+                    int removed = removeAuctionsByTraceId(strings[1]);
+                    p.sendMessage(ChatColor.YELLOW + "[AuctionHouse] " + ChatColor.GRAY
+                            + "Subastas eliminadas por ID: " + ChatColor.GOLD + removed);
+                    return true;
+                }
+                else if ((strings.length == 2 || strings.length == 3) && strings[0].equalsIgnoreCase("removefp")) {
+                    String fingerprintInput = strings[1].toLowerCase(Locale.ROOT);
+                    UUID playerId = p.getUniqueId();
+                    if (strings.length == 2 || !"confirm".equalsIgnoreCase(strings[2])) {
+                        pendingLegacyRemovals.put(playerId, fingerprintInput);
+                        int candidates = getLegacyFingerprintMatches(fingerprintInput).size();
+                        p.sendMessage(ChatColor.YELLOW + "[AuctionHouse] " + ChatColor.GRAY
+                                + "Se encontraron " + ChatColor.GOLD + candidates + ChatColor.GRAY
+                                + " subastas con esa huella.");
+                        p.sendMessage(ChatColor.RED + "[AuctionHouse] " + ChatColor.GRAY
+                                + "Confirma con: " + ChatColor.WHITE + "/ah removefp " + fingerprintInput + " confirm");
+                        return true;
+                    }
+                    String pending = pendingLegacyRemovals.get(playerId);
+                    if (pending == null || (!pending.equals(fingerprintInput) && !pending.startsWith(fingerprintInput))) {
+                        p.sendMessage(ChatColor.RED + "[AuctionHouse] " + ChatColor.GRAY
+                                + "No hay una operación pendiente para esa huella. Ejecuta /ah removefp <fp> primero.");
+                        return true;
+                    }
+                    int removed = removeAuctionsByFingerprint(fingerprintInput);
+                    pendingLegacyRemovals.remove(playerId);
+                    p.sendMessage(ChatColor.YELLOW + "[AuctionHouse] " + ChatColor.GRAY
+                            + "Subastas eliminadas por huella: " + ChatColor.GOLD + removed);
                     return true;
                 }
                 // /ah debug - Show system diagnostics
@@ -650,6 +722,14 @@ public class AuctionHouseCommand implements CommandExecutor, TabCompleter {
                 assetParams.add(M.getFormatted("command-names.summon"));
                 assetParams.add(M.getFormatted("command-names.blacklist"));
                 assetParams.add("debug");
+                assetParams.add("audit");
+                assetParams.add("auditlegacy");
+                assetParams.add("auditdupelore");
+                assetParams.add("auditlore");
+                assetParams.add("auditfp");
+                assetParams.add("trace");
+                assetParams.add("removeid");
+                assetParams.add("removefp");
             }
             for (String p : assetParams) {
                 if (p.indexOf(strings[0]) == 0) {
@@ -667,6 +747,41 @@ public class AuctionHouseCommand implements CommandExecutor, TabCompleter {
                 if (opt.indexOf(strings[1].toLowerCase(Locale.ROOT)) == 0) {
                     params.add(opt);
                 }
+            }
+        } else if (strings.length == 2 && strings[0].equalsIgnoreCase("removeid")) {
+            String prefix = strings[1].toLowerCase(Locale.ROOT);
+            Set<String> ids = new LinkedHashSet<>();
+            for (AuctionItem note : AuctionManager.getInstance().getAll()) {
+                if (!note.isOnAuction() || note.isExpired()) {
+                    continue;
+                }
+                ItemStack item = note.getItem();
+                String id = ItemManager.getOriginId(item);
+                if (id != null && id.toLowerCase(Locale.ROOT).startsWith(prefix)) {
+                    ids.add(id);
+                }
+            }
+            params.addAll(ids.stream().limit(30).toList());
+        } else if (strings.length == 2 && (strings[0].equalsIgnoreCase("auditfp") || strings[0].equalsIgnoreCase("removefp"))) {
+            String prefix = strings[1].toLowerCase(Locale.ROOT);
+            Set<String> fps = new LinkedHashSet<>();
+            for (Map.Entry<String, List<AuctionItem>> entry : getLegacyFingerprintGroups().entrySet()) {
+                if (entry.getValue().size() > 1 && entry.getKey().startsWith(prefix)) {
+                    fps.add(entry.getKey());
+                }
+            }
+            params.addAll(fps.stream().limit(30).toList());
+        } else if (strings.length >= 2 && strings[0].equalsIgnoreCase("auditlore")) {
+            List<String> suggestions = List.of("expira en: nunca", "clic para cancelar", "precio:");
+            String typed = String.join(" ", Arrays.copyOfRange(strings, 1, strings.length)).toLowerCase(Locale.ROOT);
+            for (String suggestion : suggestions) {
+                if (suggestion.startsWith(typed)) {
+                    params.add(suggestion);
+                }
+            }
+        } else if (strings.length == 3 && strings[0].equalsIgnoreCase("removefp")) {
+            if ("confirm".startsWith(strings[2].toLowerCase(Locale.ROOT))) {
+                params.add("confirm");
             }
         } else if (strings.length == 2 && strings[0].equals(M.getFormatted("command-names.pardon"))) {
             Map<java.util.UUID, me.elaineqheart.auctionHouse.configuration.BannedPlayers.BanEntry> bans = me.elaineqheart.auctionHouse.configuration.BannedPlayers
@@ -769,6 +884,408 @@ public class AuctionHouseCommand implements CommandExecutor, TabCompleter {
         SettingManager.loadData();
         AuctionManager.getInstance().loadAuctions();
         UpdateDisplay.reload();
+    }
+
+    private static void traceItemInHand(Player p) {
+        ItemStack hand = p.getInventory().getItemInMainHand();
+        if (hand.getType() == Material.AIR) {
+            p.sendMessage(M.getFormatted("command-feedback.no-item-in-hand"));
+            return;
+        }
+        ItemManager.ItemTraceInfo info = ItemManager.getTraceInfo(hand);
+        if (info == null) {
+            p.sendMessage(ChatColor.YELLOW + "[AuctionHouse] " + ChatColor.GRAY + "Este item no tiene rastreo AH.");
+            return;
+        }
+        p.sendMessage(ChatColor.GOLD + "[AuctionHouse] " + ChatColor.YELLOW + "Rastreo del item:");
+        p.sendMessage(ChatColor.GRAY + "  ID: " + ChatColor.WHITE + info.getOriginId());
+        p.sendMessage(ChatColor.GRAY + "  Comprado el: " + ChatColor.WHITE + info.getFormattedBoughtAt());
+        p.sendMessage(ChatColor.GRAY + "  Subasta origen: " + ChatColor.WHITE
+                + (info.getAuctionId() == null ? "desconocido" : info.getAuctionId()));
+        p.sendMessage(ChatColor.GRAY + "  Comprador: " + ChatColor.WHITE
+                + (info.getBuyer() == null ? "desconocido" : info.getBuyer()));
+    }
+
+    private static void runAuctionAudit(Player p) {
+        List<AuctionItem> active = AuctionManager.getInstance().getAll().stream()
+                .filter(AuctionItem::isOnAuction)
+                .filter(note -> !note.isExpired())
+                .toList();
+
+        Map<String, List<AuctionItem>> byTraceId = new HashMap<>();
+        int untagged = 0;
+        int corrupted = 0;
+
+        for (AuctionItem note : active) {
+            ItemStack item = note.getItem();
+            if (item == null) {
+                corrupted++;
+                continue;
+            }
+            String originId = ItemManager.getOriginId(item);
+            if (originId == null || originId.isEmpty()) {
+                untagged++;
+                continue;
+            }
+            byTraceId.computeIfAbsent(originId, ignored -> new ArrayList<>()).add(note);
+        }
+
+        List<Map.Entry<String, List<AuctionItem>>> suspicious = byTraceId.entrySet().stream()
+                .filter(entry -> entry.getValue().size() > 1)
+                .sorted((a, b) -> Integer.compare(b.getValue().size(), a.getValue().size()))
+                .toList();
+
+        p.sendMessage(ChatColor.GOLD + "[AuctionHouse] " + ChatColor.YELLOW + "Audit completado");
+        p.sendMessage(ChatColor.GRAY + "  Activas: " + ChatColor.WHITE + active.size());
+        p.sendMessage(ChatColor.GRAY + "  Sin rastreo: " + ChatColor.WHITE + untagged);
+        p.sendMessage(ChatColor.GRAY + "  Corruptas: " + ChatColor.WHITE + corrupted);
+        p.sendMessage(ChatColor.GRAY + "  IDs duplicados detectados: " + ChatColor.WHITE + suspicious.size());
+
+        int limit = Math.min(10, suspicious.size());
+        for (int i = 0; i < limit; i++) {
+            Map.Entry<String, List<AuctionItem>> entry = suspicious.get(i);
+            String traceId = entry.getKey();
+            List<AuctionItem> notes = entry.getValue();
+            String shortId = traceId.substring(0, Math.min(12, traceId.length()));
+            p.sendMessage(ChatColor.RED + "  - " + shortId + ChatColor.GRAY + " x" + notes.size()
+                    + " " + ChatColor.DARK_GRAY + "(usa /ah removeid " + shortId + ")");
+        }
+    }
+
+    private static int removeAuctionsByTraceId(String queryId) {
+        if (queryId == null || queryId.isEmpty()) {
+            return 0;
+        }
+        String normalized = queryId.toLowerCase(Locale.ROOT);
+        int removed = 0;
+        List<AuctionItem> all = new ArrayList<>(AuctionManager.getInstance().getAll());
+        for (AuctionItem note : all) {
+            if (!note.isOnAuction()) {
+                continue;
+            }
+            ItemStack item = note.getItem();
+            String originId = ItemManager.getOriginId(item);
+            if (originId == null) {
+                continue;
+            }
+            String originLower = originId.toLowerCase(Locale.ROOT);
+            if (!originLower.equals(normalized) && !originLower.startsWith(normalized)) {
+                continue;
+            }
+            AuctionManager.getInstance().deleteAuction(note);
+            removed++;
+        }
+        return removed;
+    }
+
+    private static void runLegacyAudit(Player p) {
+        List<AuctionItem> active = getActiveAuctions();
+        int corrupted = countCorrupted(active);
+        Map<String, List<AuctionItem>> byFingerprint = getLegacyFingerprintGroups(active);
+
+        List<Map.Entry<String, List<AuctionItem>>> suspicious = byFingerprint.entrySet().stream()
+                .filter(entry -> entry.getValue().size() > 1)
+                .sorted((a, b) -> Integer.compare(b.getValue().size(), a.getValue().size()))
+                .toList();
+
+        p.sendMessage(ChatColor.GOLD + "[AuctionHouse] " + ChatColor.YELLOW + "Legacy audit completado");
+        p.sendMessage(ChatColor.GRAY + "  Activas revisadas: " + ChatColor.WHITE + active.size());
+        p.sendMessage(ChatColor.GRAY + "  Corruptas: " + ChatColor.WHITE + corrupted);
+        p.sendMessage(ChatColor.GRAY + "  Huellas repetidas: " + ChatColor.WHITE + suspicious.size());
+        p.sendMessage(ChatColor.DARK_GRAY + "  (No prueba dupe por sí solo; revisar casos)");
+
+        int limit = Math.min(10, suspicious.size());
+        for (int i = 0; i < limit; i++) {
+            Map.Entry<String, List<AuctionItem>> entry = suspicious.get(i);
+            List<AuctionItem> notes = entry.getValue();
+            Set<UUID> sellers = new HashSet<>();
+            for (AuctionItem note : notes) {
+                sellers.add(note.getPlayerUUID());
+            }
+            String fp = entry.getKey();
+            p.sendMessage(ChatColor.RED + "  - fp:" + fp.substring(0, Math.min(10, fp.length()))
+                    + ChatColor.GRAY + " x" + notes.size()
+                    + " sellers:" + sellers.size());
+        }
+    }
+
+    private static void runKnownDupeLoreAudit(Player p) {
+        List<AuctionItem> ahMatches = getActiveAuctions().stream()
+                .filter(note -> itemLooksLikeAuctionLore(note.getItem()))
+                .toList();
+        Map<UUID, Integer> playerMatches = scanOnlinePlayersForAuctionLore();
+        sendCombinedLoreAuditResult(p, "dupe lore conocido", ahMatches, playerMatches, null);
+    }
+
+    private static void runLoreSearchAudit(Player p, String query) {
+        String normalizedQuery = normalizeLoreText(query);
+        if (normalizedQuery.isEmpty()) {
+            p.sendMessage(ChatColor.YELLOW + "[AuctionHouse] " + ChatColor.GRAY
+                    + "Uso: /ah auditlore <texto>");
+            return;
+        }
+        List<AuctionItem> matches = getActiveAuctions().stream()
+                .filter(note -> loreContainsNormalized(note, normalizedQuery))
+                .toList();
+        Map<UUID, Integer> playerMatches = scanOnlinePlayersForQuery(normalizedQuery);
+        sendCombinedLoreAuditResult(p, "búsqueda lore", matches, playerMatches, normalizedQuery);
+    }
+
+    private static void sendCombinedLoreAuditResult(Player p, String mode, List<AuctionItem> matches,
+            Map<UUID, Integer> playerMatches, String query) {
+        p.sendMessage(ChatColor.GOLD + "[AuctionHouse] " + ChatColor.YELLOW + "Audit por lore (" + mode + ")");
+        if (query != null) {
+            p.sendMessage(ChatColor.GRAY + "  Query: " + ChatColor.WHITE + query);
+        }
+        p.sendMessage(ChatColor.GRAY + "  Coincidencias en AH: " + ChatColor.WHITE + matches.size());
+        int totalPlayerItems = playerMatches.values().stream().mapToInt(Integer::intValue).sum();
+        p.sendMessage(ChatColor.GRAY + "  Coincidencias en inventarios online: " + ChatColor.WHITE + totalPlayerItems);
+        p.sendMessage(ChatColor.DARK_GRAY + "  (offline/chests no se pueden auditar sin otro sistema)");
+
+        Map<UUID, Integer> bySeller = new HashMap<>();
+        for (AuctionItem note : matches) {
+            bySeller.merge(note.getPlayerUUID(), 1, Integer::sum);
+        }
+        p.sendMessage(ChatColor.GRAY + "  Sellers afectados: " + ChatColor.WHITE + bySeller.size());
+
+        int limit = Math.min(30, matches.size());
+        for (int i = 0; i < limit; i++) {
+            AuctionItem note = matches.get(i);
+            p.sendMessage(ChatColor.RED + "  - id:" + ChatColor.WHITE + note.getNoteID().toString().substring(0, 8)
+                    + ChatColor.GRAY + " seller:" + ChatColor.WHITE + note.getPlayerName()
+                    + ChatColor.GRAY + " price:" + ChatColor.WHITE
+                    + String.format(Locale.US, "%.2f", note.getCurrentPrice())
+                    + ChatColor.GRAY + " amount:" + ChatColor.WHITE + note.getCurrentAmount());
+        }
+        if (matches.size() > limit) {
+            p.sendMessage(ChatColor.DARK_GRAY + "  ... y " + (matches.size() - limit) + " más");
+        }
+
+        if (!playerMatches.isEmpty()) {
+            p.sendMessage(ChatColor.YELLOW + "[AuctionHouse] " + ChatColor.GRAY + "Top jugadores con items sospechosos:");
+            playerMatches.entrySet().stream()
+                    .sorted((a, b) -> Integer.compare(b.getValue(), a.getValue()))
+                    .limit(20)
+                    .forEach(entry -> {
+                        OfflinePlayer target = Bukkit.getOfflinePlayer(entry.getKey());
+                        String name = target.getName() == null ? entry.getKey().toString().substring(0, 8) : target.getName();
+                        p.sendMessage(ChatColor.RED + "  - " + ChatColor.WHITE + name + ChatColor.GRAY + ": " + entry.getValue());
+                    });
+        }
+    }
+
+    private static boolean loreContainsNormalized(AuctionItem note, String queryNormalized) {
+        ItemStack item = note.getItem();
+        if (item == null || item.getItemMeta() == null || item.getItemMeta().getLore() == null) {
+            return false;
+        }
+        for (String line : item.getItemMeta().getLore()) {
+            if (normalizeLoreText(line).contains(queryNormalized)) {
+                return true;
+            }
+        }
+        return false;
+    }
+
+    private static boolean itemLooksLikeAuctionLore(ItemStack item) {
+        if (item == null || item.getItemMeta() == null || item.getItemMeta().getLore() == null) {
+            return false;
+        }
+        int hits = 0;
+        for (String line : item.getItemMeta().getLore()) {
+            String normalized = normalizeLoreText(line);
+            for (String token : KNOWN_DUPE_LORE_TOKENS) {
+                if (normalized.contains(token)) {
+                    hits++;
+                    break;
+                }
+            }
+        }
+        return hits >= 2;
+    }
+
+    private static boolean itemContainsLoreQuery(ItemStack item, String queryNormalized) {
+        if (item == null || item.getItemMeta() == null || item.getItemMeta().getLore() == null) {
+            return false;
+        }
+        for (String line : item.getItemMeta().getLore()) {
+            if (normalizeLoreText(line).contains(queryNormalized)) {
+                return true;
+            }
+        }
+        return false;
+    }
+
+    private static Map<UUID, Integer> scanOnlinePlayersForAuctionLore() {
+        Map<UUID, Integer> matches = new HashMap<>();
+        for (Player online : Bukkit.getOnlinePlayers()) {
+            int found = 0;
+            for (ItemStack item : collectAllPlayerItems(online)) {
+                if (itemLooksLikeAuctionLore(item)) {
+                    found++;
+                }
+            }
+            if (found > 0) {
+                matches.put(online.getUniqueId(), found);
+            }
+        }
+        return matches;
+    }
+
+    private static Map<UUID, Integer> scanOnlinePlayersForQuery(String queryNormalized) {
+        Map<UUID, Integer> matches = new HashMap<>();
+        for (Player online : Bukkit.getOnlinePlayers()) {
+            int found = 0;
+            for (ItemStack item : collectAllPlayerItems(online)) {
+                if (itemContainsLoreQuery(item, queryNormalized)) {
+                    found++;
+                }
+            }
+            if (found > 0) {
+                matches.put(online.getUniqueId(), found);
+            }
+        }
+        return matches;
+    }
+
+    private static List<ItemStack> collectAllPlayerItems(Player player) {
+        List<ItemStack> items = new ArrayList<>();
+        Collections.addAll(items, player.getInventory().getStorageContents());
+        Collections.addAll(items, player.getInventory().getArmorContents());
+        ItemStack offHand = player.getInventory().getItemInOffHand();
+        if (offHand != null) {
+            items.add(offHand);
+        }
+        Collections.addAll(items, player.getEnderChest().getContents());
+        items.removeIf(item -> item == null || item.getType() == Material.AIR);
+        return items;
+    }
+
+    private static String normalizeLoreText(String input) {
+        if (input == null) {
+            return "";
+        }
+        String stripped = ChatColor.stripColor(input);
+        if (stripped == null) {
+            stripped = input;
+        }
+        return stripped
+                .replace('ᴏ', 'o')
+                .replace('ɴ', 'n')
+                .replace('ᴀ', 'a')
+                .replaceAll("\\s+", " ")
+                .trim()
+                .toLowerCase(Locale.ROOT);
+    }
+
+    private static void runLegacyFingerprintDetail(Player p, String fpInput) {
+        List<AuctionItem> matches = getLegacyFingerprintMatches(fpInput);
+        if (matches.isEmpty()) {
+            p.sendMessage(ChatColor.YELLOW + "[AuctionHouse] " + ChatColor.GRAY + "No se encontraron subastas para esa huella.");
+            return;
+        }
+        p.sendMessage(ChatColor.GOLD + "[AuctionHouse] " + ChatColor.YELLOW + "Detalle huella " + fpInput);
+        p.sendMessage(ChatColor.GRAY + "  Coincidencias: " + ChatColor.WHITE + matches.size());
+
+        int limit = Math.min(25, matches.size());
+        for (int index = 0; index < limit; index++) {
+            AuctionItem note = matches.get(index);
+            p.sendMessage(ChatColor.GRAY + "  - id:"
+                    + ChatColor.WHITE + note.getNoteID().toString().substring(0, 8)
+                    + ChatColor.GRAY + " seller:"
+                    + ChatColor.WHITE + note.getPlayerName()
+                    + ChatColor.GRAY + " price:"
+                    + ChatColor.WHITE + String.format(Locale.US, "%.2f", note.getCurrentPrice())
+                    + ChatColor.GRAY + " amount:"
+                    + ChatColor.WHITE + note.getCurrentAmount());
+        }
+
+        if (matches.size() > limit) {
+            p.sendMessage(ChatColor.DARK_GRAY + "  ... y " + (matches.size() - limit) + " más");
+        }
+        p.sendMessage(ChatColor.RED + "[AuctionHouse] " + ChatColor.GRAY
+                + "Para eliminar: /ah removefp " + fpInput + " confirm");
+    }
+
+    private static int removeAuctionsByFingerprint(String fpInput) {
+        List<AuctionItem> matches = getLegacyFingerprintMatches(fpInput);
+        int removed = 0;
+        for (AuctionItem note : matches) {
+            AuctionManager.getInstance().deleteAuction(note);
+            removed++;
+        }
+        return removed;
+    }
+
+    private static List<AuctionItem> getLegacyFingerprintMatches(String fpInput) {
+        String normalized = fpInput == null ? "" : fpInput.toLowerCase(Locale.ROOT);
+        if (normalized.isEmpty()) {
+            return List.of();
+        }
+        List<AuctionItem> active = getActiveAuctions();
+        List<AuctionItem> matches = new ArrayList<>();
+        for (AuctionItem note : active) {
+            ItemStack item = note.getItem();
+            if (item == null) {
+                continue;
+            }
+            String fp = legacyFingerprint(item);
+            if (fp.equals(normalized) || fp.startsWith(normalized)) {
+                matches.add(note);
+            }
+        }
+        return matches;
+    }
+
+    private static Map<String, List<AuctionItem>> getLegacyFingerprintGroups() {
+        return getLegacyFingerprintGroups(getActiveAuctions());
+    }
+
+    private static Map<String, List<AuctionItem>> getLegacyFingerprintGroups(List<AuctionItem> active) {
+        Map<String, List<AuctionItem>> byFingerprint = new HashMap<>();
+        for (AuctionItem note : active) {
+            ItemStack item = note.getItem();
+            if (item == null) {
+                continue;
+            }
+            String fingerprint = legacyFingerprint(item);
+            byFingerprint.computeIfAbsent(fingerprint, ignored -> new ArrayList<>()).add(note);
+        }
+        return byFingerprint;
+    }
+
+    private static List<AuctionItem> getActiveAuctions() {
+        return AuctionManager.getInstance().getAll().stream()
+                .filter(AuctionItem::isOnAuction)
+                .filter(note -> !note.isExpired())
+                .toList();
+    }
+
+    private static int countCorrupted(List<AuctionItem> active) {
+        int corrupted = 0;
+        for (AuctionItem note : active) {
+            if (note.getItem() == null) {
+                corrupted++;
+            }
+        }
+        return corrupted;
+    }
+
+    private static String legacyFingerprint(ItemStack item) {
+        ItemStack normalized = item.clone();
+        normalized.setAmount(1);
+        String serialized = normalized.serialize().toString();
+        try {
+            MessageDigest digest = MessageDigest.getInstance("SHA-256");
+            byte[] hash = digest.digest(serialized.getBytes(StandardCharsets.UTF_8));
+            StringBuilder sb = new StringBuilder(hash.length * 2);
+            for (byte b : hash) {
+                sb.append(String.format("%02x", b));
+            }
+            return sb.toString();
+        } catch (NoSuchAlgorithmException ignored) {
+            return Integer.toHexString(serialized.hashCode());
+        }
     }
 
 }

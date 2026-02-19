@@ -34,8 +34,13 @@ public class CancelAuctionGUI extends InventoryGUI implements Runnable {
 
     @Override
     public void run() {
+        Player player = c.getPlayer();
+        if (player == null || !player.isOnline()) {
+            TaskManager.cancelTask(invID);
+            return;
+        }
         this.addButton(SlotConfigManager.getSlot(GUI_NAME, "item-display"), Item());
-        super.decorate(c.getPlayer());
+        super.decorate(player);
     }
 
     public CancelAuctionGUI(AuctionItem note, UserSession configuration) {
@@ -132,15 +137,14 @@ public class CancelAuctionGUI extends InventoryGUI implements Runnable {
                         Sounds.villagerDeny(event);
                         return;
                     }
-                    if (!note.isOnAuction()) {
+                    boolean success = AuctionManager.getInstance().cancelAuctionAndReturnItem(p, note);
+                    if (!success) {
                         p.sendMessage(M.getFormatted("chat.already-sold2"));
                         Sounds.villagerDeny(event);
                         return;
                     }
                     Sounds.experience(event);
                     Sounds.breakWood(event);
-                    p.getInventory().addItem(note.getItem());
-                    AuctionManager.getInstance().deleteAuction(note);
                     if (goBackToAuctionHouse)
                         AuctionHouse.getGuiManager().openGUI(new AuctionHouseGUI(c), p);
                     else

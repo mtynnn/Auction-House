@@ -100,7 +100,14 @@ public class UserSession implements Cloneable {
     }
 
     private static void save(UserSession c) {
-        currentConfigurations.put(c.getPlayer(), c.clone());
+        if (c == null || c.currentPlayer == null) {
+            return;
+        }
+        Player player = Bukkit.getPlayer(c.currentPlayer);
+        if (player == null) {
+            return;
+        }
+        currentConfigurations.put(player, c.clone());
     }
 
     public UserSession clone() {
@@ -171,6 +178,9 @@ public class UserSession implements Cloneable {
     }
 
     public Player getPlayer() {
+        if (currentPlayer == null) {
+            return null;
+        }
         return Bukkit.getPlayer(currentPlayer);
     }
 

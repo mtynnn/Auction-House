@@ -19,12 +19,19 @@ import java.util.Objects;
 import java.util.UUID;
 import java.util.WeakHashMap;
 import java.util.Map;
+import java.time.Instant;
+import java.time.ZoneId;
+import java.time.format.DateTimeFormatter;
 
 public class ItemManager {
 
     public static ItemStack emptyPaper;
     // WeakHashMap allows GC to clean up unused cached items
     private static final Map<CacheKey, ItemStack> itemCache = new WeakHashMap<>();
+    private static final DateTimeFormatter TRACE_DATE_FORMAT = DateTimeFormatter.ofPattern("yyyy-MM-dd HH:mm:ss")
+            .withZone(ZoneId.systemDefault());
+    private static final String TRACE_LORE_PREFIX = ChatColor.DARK_GRAY + "AH-ID: " + ChatColor.GRAY;
+    private static final String TRACE_DATE_LORE_PREFIX = ChatColor.DARK_GRAY + "Comprado el: " + ChatColor.GRAY;
 
     static {
         emptyPaper = createEmptyPaper();
@@ -91,6 +98,125 @@ public class ItemManager {
         return item;
     }
 
+    private static NamespacedKey traceOriginIdKey() {
+        return new NamespacedKey(AuctionHouse.getPlugin(), "ah_origin_id");
+    }
+
+    private static NamespacedKey traceAuctionIdKey() {
+        return new NamespacedKey(AuctionHouse.getPlugin(), "ah_origin_auction_id");
+    }
+
+    private static NamespacedKey traceBoughtAtKey() {
+        return new NamespacedKey(AuctionHouse.getPlugin(), "ah_origin_bought_at");
+    }
+
+    private static NamespacedKey traceBuyerKey() {
+        return new NamespacedKey(AuctionHouse.getPlugin(), "ah_origin_buyer");
+    }
+
+    public static class ItemTraceInfo {
+        private final String originId;
+        private final String auctionId;
+        private final Long boughtAtEpochSeconds;
+        private final String buyer;
+
+        public ItemTraceInfo(String originId, String auctionId, Long boughtAtEpochSeconds, String buyer) {
+            this.originId = originId;
+            this.auctionId = auctionId;
+            this.boughtAtEpochSeconds = boughtAtEpochSeconds;
+            this.buyer = buyer;
+        }
+
+        public String getOriginId() {
+            return originId;
+        }
+
+        public String getAuctionId() {
+            return auctionId;
+        }
+
+        public Long getBoughtAtEpochSeconds() {
+            return boughtAtEpochSeconds;
+        }
+
+        public String getBuyer() {
+            return buyer;
+        }
+
+        public String getFormattedBoughtAt() {
+            if (boughtAtEpochSeconds == null || boughtAtEpochSeconds <= 0) {
+                return "desconocido";
+            }
+            return TRACE_DATE_FORMAT.format(Instant.ofEpochSecond(boughtAtEpochSeconds));
+        }
+    }
+
+    public static String getOriginId(ItemStack item) {
+        if (item == null) {
+            return null;
+        }
+        ItemMeta meta = item.getItemMeta();
+        if (meta == null) {
+            return null;
+        }
+        return meta.getPersistentDataContainer().get(traceOriginIdKey(), PersistentDataType.STRING);
+    }
+
+    public static ItemTraceInfo getTraceInfo(ItemStack item) {
+        if (item == null) {
+            return null;
+        }
+        ItemMeta meta = item.getItemMeta();
+        if (meta == null) {
+            return null;
+        }
+        String originId = meta.getPersistentDataContainer().get(traceOriginIdKey(), PersistentDataType.STRING);
+        if (originId == null || originId.isEmpty()) {
+            return null;
+        }
+        String auctionId = meta.getPersistentDataContainer().get(traceAuctionIdKey(), PersistentDataType.STRING);
+        Long boughtAt = meta.getPersistentDataContainer().get(traceBoughtAtKey(), PersistentDataType.LONG);
+        String buyer = meta.getPersistentDataContainer().get(traceBuyerKey(), PersistentDataType.STRING);
+        return new ItemTraceInfo(originId, auctionId, boughtAt, buyer);
+    }
+
+    public static ItemStack stampAuctionPurchase(ItemStack source, AuctionItem note, Player buyer) {
+        if (source == null) {
+            return null;
+        }
+        ItemStack item = source.clone();
+        ItemMeta meta = item.getItemMeta();
+        if (meta == null) {
+            return item;
+        }
+
+        String existingOriginId = meta.getPersistentDataContainer().get(traceOriginIdKey(), PersistentDataType.STRING);
+        String originId = (existingOriginId == null || existingOriginId.isEmpty())
+                ? UUID.randomUUID().toString()
+                : existingOriginId;
+
+        long now = System.currentTimeMillis() / 1000L;
+        meta.getPersistentDataContainer().set(traceOriginIdKey(), PersistentDataType.STRING, originId);
+        meta.getPersistentDataContainer().set(traceAuctionIdKey(), PersistentDataType.STRING,
+                note != null ? note.getNoteID().toString() : "unknown");
+        meta.getPersistentDataContainer().set(traceBoughtAtKey(), PersistentDataType.LONG, now);
+        if (buyer != null) {
+            meta.getPersistentDataContainer().set(traceBuyerKey(), PersistentDataType.STRING, buyer.getUniqueId().toString());
+        }
+
+        List<String> lore = meta.getLore();
+        if (lore == null) {
+            lore = new ArrayList<>();
+        }
+        lore.removeIf(line -> line != null && (line.startsWith(TRACE_LORE_PREFIX) || line.startsWith(TRACE_DATE_LORE_PREFIX)));
+        lore.add(TRACE_LORE_PREFIX + originId.substring(0, Math.min(12, originId.length())));
+        lore.add(TRACE_DATE_LORE_PREFIX + TRACE_DATE_FORMAT.format(Instant.ofEpochSecond(now)));
+
+        meta.setLore(lore);
+        item.setItemMeta(meta);
+        return item;
+    }
+
     private static ItemStack createCorruptedItemPlaceholder(AuctionItem note) {
         ItemStack item = new ItemStack(Material.BARRIER);
         ItemMeta meta = item.getItemMeta();
@@ -112,8 +238,10 @@ public class ItemManager {
     }
 
     public static ItemStack createItemFromNote(AuctionItem note, Player p, boolean ownAuction, boolean isAdmin) {
+        UUID playerId = p != null ? p.getUniqueId() : new UUID(0L, 0L);
+
         // Check cache first
-        CacheKey key = new CacheKey(note.getNoteID(), p.getUniqueId(), isAdmin);
+        CacheKey key = new CacheKey(note.getNoteID(), playerId, isAdmin);
         ItemStack cached = itemCache.get(key);
         if (cached != null && !key.isStale()) {
             return cached.clone(); // Return clone to prevent modification
@@ -140,7 +268,7 @@ public class ItemManager {
                     "{seller}", StringUtils.escapeMiniMessage(note.getPlayerName()),
                     "{remaining_time}", StringUtils.getTime(note.getTimeLeft(), true));
 
-            boolean isSeller = Objects.equals(note.getPlayerUUID(), p.getUniqueId());
+            boolean isSeller = p != null && Objects.equals(note.getPlayerUUID(), p.getUniqueId());
 
             for (String line : template) {
                 if (line.contains("{if_shulker}")) {

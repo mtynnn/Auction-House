@@ -36,7 +36,12 @@ public class AuctionHouseGUI extends InventoryGUI implements Runnable {
 
     @Override
     public void run() {
-        decorate(c.getPlayer());
+        Player player = c.getPlayer();
+        if (player == null || !player.isOnline()) {
+            TaskManager.cancelTask(invID);
+            return;
+        }
+        decorate(player);
     }
 
     public enum Sort {
@@ -86,6 +91,11 @@ public class AuctionHouseGUI extends InventoryGUI implements Runnable {
 
     @Override
     public void decorate(Player player) {
+        if (player == null || !player.isOnline()) {
+            TaskManager.cancelTask(invID);
+            return;
+        }
+
         // Fill with filler items
         fillFiller();
 
@@ -124,7 +134,13 @@ public class AuctionHouseGUI extends InventoryGUI implements Runnable {
 
     private void update() {
         TaskManager.cancelTask(invID);
-        Bukkit.getScheduler().runTask(AuctionHouse.getPlugin(), () -> decorate(c.getPlayer()));
+        Bukkit.getScheduler().runTask(AuctionHouse.getPlugin(), () -> {
+            Player player = c.getPlayer();
+            if (player == null || !player.isOnline()) {
+                return;
+            }
+            decorate(player);
+        });
         invID = UUID.randomUUID();
         TaskManager.addTaskID(invID,
                 Bukkit.getScheduler().runTaskTimer(AuctionHouse.getPlugin(), this, 20, 20).getTaskId());

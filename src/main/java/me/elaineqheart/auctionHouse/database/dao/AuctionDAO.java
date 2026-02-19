@@ -16,6 +16,7 @@ import java.sql.PreparedStatement;
 import java.sql.ResultSet;
 import java.sql.SQLException;
 import java.util.UUID;
+import java.util.List;
 import java.util.logging.Level;
 
 public class AuctionDAO {
@@ -306,5 +307,36 @@ public class AuctionDAO {
                 e.printStackTrace();
             }
         });
+    }
+
+    /**
+     * Persists the current in-memory snapshot synchronously.
+     * Used on plugin shutdown/reload to avoid losing async writes.
+     */
+    public void saveSnapshotSync(List<AuctionItem> snapshot) {
+        String deleteBids = "DELETE FROM bids";
+        String deleteAuctions = "DELETE FROM auctions";
+
+        try (Connection conn = dbManager.getConnection()) {
+            conn.setAutoCommit(false);
+            try (PreparedStatement stmt = conn.prepareStatement(deleteBids)) {
+                stmt.executeUpdate();
+            }
+            try (PreparedStatement stmt = conn.prepareStatement(deleteAuctions)) {
+                stmt.executeUpdate();
+            }
+
+            if (snapshot != null) {
+                for (AuctionItem note : snapshot) {
+                    if (note == null) {
+                        continue;
+                    }
+                    saveSync(note, conn);
+                }
+            }
+            conn.commit();
+        } catch (Exception e) {
+            AuctionHouse.getPlugin().getLogger().log(Level.SEVERE, "Failed to save auction snapshot synchronously", e);
+        }
     }
 }

@@ -37,8 +37,13 @@ public class AdminActionGUI extends InventoryGUI implements Runnable {
 
     @Override
     public void run() {
+        Player player = c.getPlayer();
+        if (player == null || !player.isOnline()) {
+            TaskManager.cancelTask(invID);
+            return;
+        }
         this.addButton(SlotConfigManager.getSlot(GUI_NAME, "item-display"), Item());
-        super.decorate(c.getPlayer());
+        super.decorate(player);
     }
 
     public AdminActionGUI(AuctionItem note, UserSession configuration) {
