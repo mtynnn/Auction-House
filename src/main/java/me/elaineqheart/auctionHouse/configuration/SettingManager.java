@@ -61,6 +61,7 @@ public class SettingManager {
 
     // Debug settings
     public static boolean debugEnabled;
+    public static boolean traceVisibleLore;
 
     // Time units (Small Caps)
     public static String timeUnitDays;
@@ -163,6 +164,7 @@ public class SettingManager {
 
         // Debug
         debugEnabled = c.getBoolean("debug.enabled", false);
+        traceVisibleLore = c.getBoolean("trace.visible-lore", false);
 
         if (ConfigManager.backwardsCompatibility())
             backwardsCompatibility();

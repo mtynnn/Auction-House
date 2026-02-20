@@ -4,6 +4,7 @@ import me.elaineqheart.auctionHouse.AuctionHouse;
 import me.elaineqheart.auctionHouse.util.StringUtils;
 import me.elaineqheart.auctionHouse.GUI.config.GuiConfigManager;
 import me.elaineqheart.auctionHouse.model.AuctionItem;
+import me.elaineqheart.auctionHouse.configuration.SettingManager;
 
 import org.bukkit.ChatColor;
 import org.bukkit.Material;
@@ -204,17 +205,51 @@ public class ItemManager {
             meta.getPersistentDataContainer().set(traceBuyerKey(), PersistentDataType.STRING, buyer.getUniqueId().toString());
         }
 
-        List<String> lore = meta.getLore();
-        if (lore == null) {
-            lore = new ArrayList<>();
+        if (SettingManager.traceVisibleLore) {
+            List<String> lore = meta.getLore();
+            if (lore == null) {
+                lore = new ArrayList<>();
+            }
+            lore.removeIf(line -> line != null
+                    && (line.startsWith(TRACE_LORE_PREFIX) || line.startsWith(TRACE_DATE_LORE_PREFIX)));
+            lore.add(TRACE_LORE_PREFIX + originId.substring(0, Math.min(12, originId.length())));
+            lore.add(TRACE_DATE_LORE_PREFIX + TRACE_DATE_FORMAT.format(Instant.ofEpochSecond(now)));
+            meta.setLore(lore);
+        } else {
+            clearTraceLore(meta);
         }
-        lore.removeIf(line -> line != null && (line.startsWith(TRACE_LORE_PREFIX) || line.startsWith(TRACE_DATE_LORE_PREFIX)));
-        lore.add(TRACE_LORE_PREFIX + originId.substring(0, Math.min(12, originId.length())));
-        lore.add(TRACE_DATE_LORE_PREFIX + TRACE_DATE_FORMAT.format(Instant.ofEpochSecond(now)));
-
-        meta.setLore(lore);
         item.setItemMeta(meta);
         return item;
+    }
+
+    public static boolean stripAuctionTraceLore(ItemStack item) {
+        if (item == null || item.getType() == Material.AIR) {
+            return false;
+        }
+        ItemMeta meta = item.getItemMeta();
+        if (meta == null) {
+            return false;
+        }
+        boolean changed = clearTraceLore(meta);
+        if (changed) {
+            item.setItemMeta(meta);
+        }
+        return changed;
+    }
+
+    private static boolean clearTraceLore(ItemMeta meta) {
+        List<String> lore = meta.getLore();
+        if (lore == null || lore.isEmpty()) {
+            return false;
+        }
+        int before = lore.size();
+        lore.removeIf(line -> line != null
+                && (line.startsWith(TRACE_LORE_PREFIX) || line.startsWith(TRACE_DATE_LORE_PREFIX)));
+        if (lore.size() == before) {
+            return false;
+        }
+        meta.setLore(lore.isEmpty() ? null : lore);
+        return true;
     }
 
     private static ItemStack createCorruptedItemPlaceholder(AuctionItem note) {

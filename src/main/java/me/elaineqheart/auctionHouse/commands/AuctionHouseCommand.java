@@ -102,6 +102,16 @@ public class AuctionHouseCommand implements CommandExecutor, TabCompleter {
                     && SettingManager.BINAuctions) {
                 p.sendMessage(M.getFormatted("command-feedback.usage"));
             }
+            if (strings.length >= 1 && strings[0].equalsIgnoreCase("cleantrace")) {
+                boolean includeEnder = strings.length >= 2 && strings[1].equalsIgnoreCase("all");
+                int cleaned = cleanTraceLoreForPlayer(p, includeEnder);
+                p.sendMessage(ChatColor.YELLOW + "[AuctionHouse] " + ChatColor.GRAY
+                        + "Items limpiados: " + ChatColor.GOLD + cleaned);
+                if (!includeEnder) {
+                    p.sendMessage(ChatColor.DARK_GRAY + "Tip: /ah cleantrace all para incluir ender chest.");
+                }
+                return true;
+            }
             if (strings.length == 1 && strings[0].equals(M.getFormatted("command-names.bid"))
                     && SettingManager.BIDAuctions) {
                 p.sendMessage(M.getFormatted("command-feedback.bid-usage"));
@@ -715,6 +725,7 @@ public class AuctionHouseCommand implements CommandExecutor, TabCompleter {
                 assetParams.add(M.getFormatted("command-names.bid"));
             if (SettingManager.auctionAnnouncementsEnabled)
                 assetParams.add(M.getFormatted("command-names.announce"));
+            assetParams.add("cleantrace");
             if (commandSender.hasPermission(SettingManager.permissionModerate)) {
                 assetParams.add(M.getFormatted("command-names.ban"));
                 assetParams.add(M.getFormatted("command-names.pardon"));
@@ -778,6 +789,10 @@ public class AuctionHouseCommand implements CommandExecutor, TabCompleter {
                 if (suggestion.startsWith(typed)) {
                     params.add(suggestion);
                 }
+            }
+        } else if (strings.length == 2 && strings[0].equalsIgnoreCase("cleantrace")) {
+            if ("all".startsWith(strings[1].toLowerCase(Locale.ROOT))) {
+                params.add("all");
             }
         } else if (strings.length == 3 && strings[0].equalsIgnoreCase("removefp")) {
             if ("confirm".startsWith(strings[2].toLowerCase(Locale.ROOT))) {
@@ -1286,6 +1301,32 @@ public class AuctionHouseCommand implements CommandExecutor, TabCompleter {
         } catch (NoSuchAlgorithmException ignored) {
             return Integer.toHexString(serialized.hashCode());
         }
+    }
+
+    private static int cleanTraceLoreForPlayer(Player player, boolean includeEnderChest) {
+        int cleaned = 0;
+        for (ItemStack item : player.getInventory().getStorageContents()) {
+            if (ItemManager.stripAuctionTraceLore(item)) {
+                cleaned++;
+            }
+        }
+        for (ItemStack item : player.getInventory().getArmorContents()) {
+            if (ItemManager.stripAuctionTraceLore(item)) {
+                cleaned++;
+            }
+        }
+        if (ItemManager.stripAuctionTraceLore(player.getInventory().getItemInOffHand())) {
+            cleaned++;
+        }
+        if (includeEnderChest) {
+            for (ItemStack item : player.getEnderChest().getContents()) {
+                if (ItemManager.stripAuctionTraceLore(item)) {
+                    cleaned++;
+                }
+            }
+        }
+        player.updateInventory();
+        return cleaned;
     }
 
 }
