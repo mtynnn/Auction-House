@@ -124,7 +124,12 @@ public class ConfirmBidGUI extends InventoryGUI {
                         Sounds.villagerDeny(event);
                         return;
                     }
-                    eco.withdrawPlayer(p, increase);
+                    net.milkbowl.vault.economy.EconomyResponse bidResp = eco.withdrawPlayer(p, increase);
+                    if (!bidResp.transactionSuccess()) {
+                        p.sendMessage(M.getFormatted("chat.not-enough-money"));
+                        Sounds.villagerDeny(event);
+                        return;
+                    }
                     Sounds.experience(event);
                     AuctionManager.getInstance().addBid(liveNote, p, price);
                     p.sendMessage(M.getFormatted("chat.placed-bid",

@@ -191,33 +191,16 @@ public class ItemManager {
             return item;
         }
 
-        String existingOriginId = meta.getPersistentDataContainer().get(traceOriginIdKey(), PersistentDataType.STRING);
-        String originId = (existingOriginId == null || existingOriginId.isEmpty())
-                ? UUID.randomUUID().toString()
-                : existingOriginId;
-
         long now = System.currentTimeMillis() / 1000L;
-        meta.getPersistentDataContainer().set(traceOriginIdKey(), PersistentDataType.STRING, originId);
-        meta.getPersistentDataContainer().set(traceAuctionIdKey(), PersistentDataType.STRING,
-                note != null ? note.getNoteID().toString() : "unknown");
-        meta.getPersistentDataContainer().set(traceBoughtAtKey(), PersistentDataType.LONG, now);
-        if (buyer != null) {
-            meta.getPersistentDataContainer().set(traceBuyerKey(), PersistentDataType.STRING, buyer.getUniqueId().toString());
-        }
 
-        if (SettingManager.traceVisibleLore) {
-            List<String> lore = meta.getLore();
-            if (lore == null) {
-                lore = new ArrayList<>();
-            }
-            lore.removeIf(line -> line != null
-                    && (line.startsWith(TRACE_LORE_PREFIX) || line.startsWith(TRACE_DATE_LORE_PREFIX)));
-            lore.add(TRACE_LORE_PREFIX + originId.substring(0, Math.min(12, originId.length())));
-            lore.add(TRACE_DATE_LORE_PREFIX + TRACE_DATE_FORMAT.format(Instant.ofEpochSecond(now)));
-            meta.setLore(lore);
-        } else {
-            clearTraceLore(meta);
+        List<String> lore = meta.getLore();
+        if (lore == null) {
+            lore = new ArrayList<>();
         }
+        // Remove any previous purchase-date line before adding a fresh one
+        lore.removeIf(line -> line != null && line.startsWith(TRACE_DATE_LORE_PREFIX));
+        lore.add(TRACE_DATE_LORE_PREFIX + TRACE_DATE_FORMAT.format(Instant.ofEpochSecond(now)));
+        meta.setLore(lore);
         item.setItemMeta(meta);
         return item;
     }

@@ -318,6 +318,10 @@ public class AuctionItem {
         this.itemData = ItemStackConverter.encode(item);
     }
 
+    public long getAuctionTime() {
+        return auctionTime;
+    }
+
     public void setAuctionTime(long time) {
         this.auctionTime = time;
     }

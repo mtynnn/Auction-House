@@ -67,6 +67,12 @@ public class BannedPlayers {
         return true;
     }
 
+    public static void unban(UUID uuid) {
+        bannedPlayers.remove(uuid);
+        new me.elaineqheart.auctionHouse.database.dao.ServerDataDAO()
+                .saveBannedPlayers(bannedPlayers);
+    }
+
     private void save() {
         new me.elaineqheart.auctionHouse.database.dao.ServerDataDAO()
                 .saveBannedPlayers(bannedPlayers);

@@ -60,9 +60,10 @@ debug:
   log-corrupted-items: false            # Log items that fail to load
   max-stack-size: 576                   # Max items in one auction (9 inv * 64)
 
-# Item trace tags (anti-dupe / audit)
+# Item purchase stamp
 trace:
-  visible-lore: false                   # false = do NOT add lore lines to bought items (keeps crafting/keys compatibility)
+  # Items bought from the AH receive a single lore line: "Comprado el: <date>"
+  # No PDC/custom-data tags are written, so items remain fully craftable.
 
 # Format
 format-money:

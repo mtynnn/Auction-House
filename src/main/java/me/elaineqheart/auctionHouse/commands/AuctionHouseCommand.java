@@ -481,14 +481,7 @@ public class AuctionHouseCommand implements CommandExecutor, TabCompleter {
                     for (Map.Entry<java.util.UUID, me.elaineqheart.auctionHouse.configuration.BannedPlayers.BanEntry> entry : bans
                             .entrySet()) {
                         if (entry.getValue().playerName.equalsIgnoreCase(input)) {
-                            bans.remove(entry.getKey());
-                            // Trigger save
-                            new me.elaineqheart.auctionHouse.configuration.BannedPlayers()
-                                    .saveBannedPlayer(p, 0, ""); // Saving workaround or explicit save method needed
-                            // BannedPlayers.save() is private.
-                            // But removing from map is not enough because we need to persist removal.
-                            // BannedPlayers class needs a public save() or unban method.
-                            // I will add a static unban method to BannedPlayers.
+                            me.elaineqheart.auctionHouse.configuration.BannedPlayers.unban(entry.getKey());
                             found = true;
                             p.sendMessage(M.getFormatted("command-feedback.pardon", "%player%", input));
                             break;

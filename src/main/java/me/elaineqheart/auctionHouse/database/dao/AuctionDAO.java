@@ -243,8 +243,8 @@ public class AuctionDAO {
             stmt.setString(4, ItemStackConverter.encode(note.getItem()));
             stmt.setDouble(5, note.getPrice());
             stmt.setLong(6, note.getDateCreated().getTime());
-            stmt.setLong(7, 0); // Need to store actual duration or logic? AuctionItem calculates expiry
-                                // dynamically.
+            note.getTimeLeft(); // ensure auctionTime is lazily resolved before persisting
+            stmt.setLong(7, note.getAuctionTime());
             stmt.setBoolean(8, note.isBIDAuction());
             stmt.setBoolean(9, note.isSold());
             stmt.setInt(10, note.getPartiallySoldAmountLeft());

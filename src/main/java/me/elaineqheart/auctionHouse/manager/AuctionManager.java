@@ -79,6 +79,9 @@ public class AuctionManager {
         remove(item);
         dao.delete(item);
         if (item != null) {
+            auctionLocks.remove(item.getNoteID());
+        }
+        if (item != null) {
             Debug.log("Deleted auction id=" + item.getNoteID() + " seller=" + item.getPlayerName());
         }
     }
@@ -311,7 +314,10 @@ public class AuctionManager {
                 return new PurchaseResult(PurchaseStatus.INSUFFICIENT_FUNDS, liveNote, null, price);
             }
 
-            eco.withdrawPlayer(buyer, price);
+            net.milkbowl.vault.economy.EconomyResponse withdrawResp = eco.withdrawPlayer(buyer, price);
+            if (!withdrawResp.transactionSuccess()) {
+                return new PurchaseResult(PurchaseStatus.INSUFFICIENT_FUNDS, liveNote, null, price);
+            }
 
             ItemStack boughtItem = baseItem.clone();
             boughtItem.setAmount(amount);
@@ -597,7 +603,12 @@ public class AuctionManager {
 
             Economy eco = VaultHook.getEconomy();
             double profit = price; // No tax applied
-            eco.depositPlayer(p, profit);
+            net.milkbowl.vault.economy.EconomyResponse depositResp = eco.depositPlayer(p, profit);
+            if (!depositResp.transactionSuccess()) {
+                AuctionHouse.getPlugin().getLogger().warning(
+                    "[AuctionHouse] depositPlayer failed for " + p.getName() + " amount=" + profit
+                    + " reason=" + depositResp.errorMessage);
+            }
 
             if (liveNote.getPartiallySoldAmountLeft() != 0) {
                 // Convert listing to the remaining unsold amount to avoid repeated claims.
@@ -740,7 +751,12 @@ public class AuctionManager {
                 return false;
             }
 
-            VaultHook.getEconomy().depositPlayer(p, amount);
+            net.milkbowl.vault.economy.EconomyResponse refundResp = VaultHook.getEconomy().depositPlayer(p, amount);
+            if (!refundResp.transactionSuccess()) {
+                AuctionHouse.getPlugin().getLogger().warning(
+                    "[AuctionHouse] bid refund depositPlayer failed for " + p.getName() + " amount=" + amount
+                    + " reason=" + refundResp.errorMessage);
+            }
             removeBid(p, liveNote);
             return true;
         }

@@ -125,33 +125,7 @@ public class EndedAuctionGUI extends InventoryGUI implements Runnable {
         ItemStack collectBtn = new ItemStack(SlotConfigManager.getMaterial(GUI_NAME, "claim"));
         ItemMeta meta = collectBtn.getItemMeta();
 
-        boolean isWinner = false;
-        if (note.getBidHistoryList().size() > 0) {
-            // simplified check
-            // In AuctionItem, we might need a helper to check if this player is the winner?
-            // But note.getBids() returns list of bids. Valid if list is sorted?
-            // Usually bids are stored in order? Or we iterate?
-            // AuctionItem.getBids() returns List<Bid>.
-            // Let's assume the last bid is the highest? Or first?
-            // Usually AuctionItem logic keeps them sorted or we check max.
-            // But let's use the logic I wrote earlier:
-            // checks if top bidder.
-            for (Bid b : note.getBidHistoryList()) {
-                if (b.getPrice() == note.getPrice()) { // Price matches sold price?
-                    if (b.getPlayerID().equals(p.getUniqueId()))
-                        isWinner = true;
-                }
-                // Actually AuctionItem has `getLastBidder()`? No, earlier I saw
-                // `getLastBidder()` in `ItemNote`.
-                // does `AuctionItem` have it?
-                // I should check `AuctionItem`.
-            }
-        }
-        // Wait, `AuctionItem` is `ItemNote` renamed.
-        // `ItemNote` had `getLastBidder()`.
-        if (Objects.equals(note.getLastBidder(), p.getUniqueId())) {
-            isWinner = true;
-        }
+        boolean isWinner = Objects.equals(note.getLastBidder(), p.getUniqueId());
 
         if (meta != null) {
             if (isWinner) {
